@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Happy Trip Site</title>
+<link rel="stylesheet" href="./assets/css/travel.css">
+</head>
+<body>
+
+<!-- top bar -->
+<header class="topbar">
+  <button class="menu-btn" id="menuBtn" aria-label="打开日期菜单">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+  <div class="top-title">
+    <span class="jp" id="topJp">DAY 01</span>
+    <span class="cn" id="topCn">Happy Trip</span>
+  </div>
+  <div class="theme-badge"><span id="themeBadgeText">TRIP</span></div>
+</header>
+
+<!-- sidebar -->
+<div class="scrim" id="scrim"></div>
+<aside class="sidebar" id="sidebar" aria-label="日期选择">
+  <div class="sb-head">
+    <h2 class="sb-kanji" id="sidebarTitle">旅<em>行程</em></h2>
+    <div class="sb-sub" id="sidebarSub">HAPPY TRIP</div>
+    <div class="sb-meta">
+      <span class="chip" id="sidebarPrimaryMeta">TRIP</span>
+      <span class="chip" id="sidebarSecondaryMeta">MOBILE</span>
+    </div>
+  </div>
+  <nav class="sb-list" id="dayList">
+    <div class="sb-section-label">行 程 · ITINERARY</div>
+    <!-- days injected by JS -->
+  </nav>
+  <div class="sb-foot">
+    <span>旅 の 栞</span>
+    <span class="vline">しおり</span>
+  </div>
+</aside>
+
+<!-- main -->
+<main id="main"></main>
+
+<script src="./assets/js/trip-data.js"></script>
+<script src="./assets/js/travel.js"></script>
+</body>
+</html>

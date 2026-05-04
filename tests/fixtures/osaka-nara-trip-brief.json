@@ -1,0 +1,65 @@
+{
+  "trip_title": "Osaka Nara Three Day Trip",
+  "trip_slug": "osaka-nara-three-day",
+  "date_range": "2026-05-09 to 2026-05-11",
+  "language": "zh-CN",
+  "deploy_to_vercel_prod": true,
+  "output_desktop_folder": "~/Desktop/osaka-nara-three-day-travel-site",
+  "assumptions": [
+    "Missing place links use Google Maps search URLs."
+  ],
+  "uncertain_items": [
+    "The exact Namba hotel name was not provided."
+  ],
+  "days": [
+    {
+      "n": 1,
+      "date": "05/09",
+      "city": "Osaka",
+      "cityJp": "Osaka",
+      "title": "Arrive in Osaka",
+      "themeJp": "旅の始まり",
+      "routeOverview": {
+        "title": "Daily Route Overview",
+        "mode": "transit",
+        "zoom": 11,
+        "stops": [
+          {
+            "label": "Namba",
+            "query": "Namba Osaka",
+            "inferred": true
+          }
+        ]
+      },
+      "morning": [],
+      "afternoon": [
+        {
+          "time": "下午",
+          "tag": "walk",
+          "tagText": "散策",
+          "title": "Walk around Shinsaibashi",
+          "jp": "心斎橋散策",
+          "note": "Explore the shopping street and nearby cafes.",
+          "links": []
+        }
+      ],
+      "evening": [
+        {
+          "time": "晚上",
+          "tag": "eat",
+          "tagText": "美食",
+          "title": "Dotonbori dinner",
+          "jp": "道頓堀",
+          "note": "Dinner around Dotonbori.",
+          "links": [
+            {
+              "type": "maps",
+              "label": "Dotonbori",
+              "url": "https://maps.google.com/?q=Dotonbori+Osaka"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

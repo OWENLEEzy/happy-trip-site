@@ -1,0 +1,4 @@
+interface:
+  display_name: "Happy Trip Site"
+  short_description: "Generate and deploy mobile travel itinerary sites."
+  default_prompt: "Create a mobile travel site from this itinerary. Ask follow-up questions until the trip brief is complete, then generate the site and deploy it to Vercel production after confirmation."
