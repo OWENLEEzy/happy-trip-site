@@ -22,6 +22,39 @@ Use the same skill folder for different agents:
 
 The skill entrypoint is `skill/happy-trip-site/SKILL.md`.
 
+## OpenAgentSkill Installation
+
+Install from OpenAgentSkill-compatible tooling after this repository is public and indexed:
+
+```bash
+npx skills add OWENLEEzy/happy-trip-site
+```
+
+Install directly in Codex from the GitHub skill directory:
+
+```text
+$skill-installer install https://github.com/OWENLEEzy/happy-trip-site/tree/main/skill/happy-trip-site
+```
+
+Manual install paths:
+
+```bash
+cp -R skill/happy-trip-site ~/.codex/skills/happy-trip-site
+cp -R skill/happy-trip-site ~/.claude/skills/happy-trip-site
+```
+
+Minimal prompt:
+
+```text
+Create a mobile travel site from this itinerary. Ask follow-up questions until the trip brief is complete, recommend a destination-specific theme, find real image candidates, then generate and validate the static site after I confirm.
+```
+
+Validate a generated site before claiming completion:
+
+```bash
+python3 skill/happy-trip-site/scripts/validate_site.py "$HOME/Desktop/<trip-slug>-travel-site"
+```
+
 ## Workflow Contract
 
 The agent should:

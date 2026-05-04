@@ -1,0 +1,24 @@
+{
+  "name": "happy-trip-site",
+  "version": "0.1.0",
+  "description": "Generate mobile-first travel itinerary websites from trip notes, with real media selection, validation, and Vercel deployment.",
+  "category": "Creative",
+  "platforms": ["codex", "claude-code", "github-copilot", "agent-skills"],
+  "author": {
+    "name": "OWENLEEzy",
+    "github": "OWENLEEzy"
+  },
+  "repository": "https://github.com/OWENLEEzy/happy-trip-site",
+  "license": "MIT",
+  "tags": [
+    "travel",
+    "itinerary",
+    "static-site",
+    "mobile-first",
+    "vercel",
+    "codex",
+    "agent-skill",
+    "trip-planner",
+    "website-generator"
+  ]
+}

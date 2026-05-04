@@ -1,6 +1,7 @@
 ---
 name: happy-trip-site
 description: Generate mobile-first travel itinerary websites from natural-language trip plans, spreadsheet-pasted itineraries, chat notes, or rough travel schedules. Use when the user wants a phone-readable trip site, itinerary webpage, Vercel-deployed travel page, or one-stop workflow from travel text to production URL. The skill must ask follow-up questions until the trip brief is complete before generating files or deploying.
+license: MIT
 ---
 
 # Happy Trip Site
