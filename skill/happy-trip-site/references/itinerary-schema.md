@@ -26,43 +26,68 @@ Represent the extracted trip as JSON:
 
 Rules:
 
-- Provide 2-4 `theme_options` before generation.
-- `recommended_theme_id` is the agent's recommendation.
-- `confirmed_theme_id` is required and must match one option id.
-- The final generated site may only use the confirmed theme tokens.
+- Trip Brief stays factual. Do not hide UI choices in the trip data.
+- Provide 3 `ui_options` before generation and generate preview HTML files for them.
+- `recommended_option_id` is the agent's recommendation.
+- `confirmed_option_id` is required unless the user is still choosing.
+- The final generated site may only use the confirmed UI option. Theme Brief is a compatibility alias only.
 
-## Theme Brief
+## UI Brief
 
-Trip Brief stays factual. Visual style lives in a separate Theme Brief, and the user must choose one option before generation:
+Visual style lives in a separate UI Brief. Each option is a complete design contract, not a hidden theme ID. The user must choose one preview, request a recorded mix, or explicitly delegate the recommended default before generation:
 
 ```json
 {
-  "recommended_theme_id": "urban-bay-neon",
-  "confirmed_theme_id": "urban-bay-neon",
-  "theme_options": [
+  "recommended_option_id": "urban-bay-neon",
+  "confirmed_option_id": "urban-bay-neon",
+  "ui_options": [
     {
       "id": "urban-bay-neon",
       "name": "城市海湾夜行",
       "reason": "Destination, route density, season, and activity mix support this direction.",
+      "layout_profile": "bay-garden-evening",
       "palette": {
-        "background": "#F6F4EE",
-        "surface": "#FFFFFF",
-        "ink": "#171A1F",
-        "muted": "#67717D",
-        "accent": "#0E7C86",
-        "accent2": "#D34F2F",
-        "line": "rgba(23,26,31,.14)"
+        "background": "#DFF7F2",
+        "surface": "#FFFDF5",
+        "ink": "#102A2B",
+        "muted": "#557174",
+        "accent": "#006D77",
+        "accent2": "#FFB000",
+        "line": "rgba(16,42,43,.16)"
       },
       "typography": {
         "sans": "system-ui",
         "serif": "serif",
         "display": "system-ui"
       },
+      "density": "spacious",
+      "navigation": "topbar-drawer",
+      "hero_treatment": "full-bleed-photo",
+      "card_treatment": "timeline-cards",
+      "link_treatment": "pill-cluster",
+      "map_treatment": "embed-with-stop-chips",
+      "motion_level": "subtle",
       "motifs": ["bay", "metro", "night-lights"]
     }
   ]
 }
 ```
+
+Rules:
+
+- The UI Brief must provide 3 options and each option must be shown through a local preview file.
+- A confirmed UI option must include all of: `layout_profile`, `palette`, `typography`, `density`, `navigation`, `hero_treatment`, `card_treatment`, `link_treatment`, `map_treatment`, `motion_level`, and `motifs`.
+- `layout_profile` controls layout, module treatment, labels, and destination-specific visual motifs. It is not decorative metadata.
+- Supported layout profiles are `bay-garden-evening`, `peranakan-tropical-blocks`, and `metro-food-clean`.
+- `palette` must include semantic keys: `background`, `surface`, `ink`, `muted`, `accent`, `accent2`, and `line`.
+- `palette` must be a visible destination-specific choice. Do not use the template fallback palette or old demo palettes as a selectable UI option.
+- The 3 UI options must be materially distinct: at least 3 distinct `layout_profile` values, 3 distinct palette signatures, and 3 distinct treatment combinations across density, navigation, hero, cards, links, map, and motion.
+- `motion_level` must respect `prefers-reduced-motion`; `none` must disable nonessential animation.
+- If the user says to use the recommended default, still record the full chosen UI option in `ui-brief.json` and generated `TRIP_SITE_DATA.ui`.
+
+## Media Brief
+
+Media choices live in a separate Media Brief. Every required media slot must be confirmed and must point to a real selected asset. Do not use placeholders.
 
 Rules:
 
@@ -72,10 +97,6 @@ Rules:
 - `local_path` must be under `assets/media/`.
 - Generation fails if a confirmed image cannot be downloaded.
 - Do not use placeholder images, sample images, generated blank cards, or old Kansai visual assets as final media.
-
-## Media Brief
-
-Media choices live in a separate Media Brief. Every required media slot must be confirmed and must point to a real selected asset. Do not use placeholders.
 
 ```json
 {
@@ -116,9 +137,9 @@ Each day must follow this shape:
   "n": 1,
   "date": "05/09",
   "city": "Osaka",
-  "cityJp": "Osaka",
+  "areaLabel": "Namba / Nara",
   "title": "Arrive in Osaka",
-  "themeJp": "旅の始まり",
+  "themeLabel": "旅程开场",
   "routeOverview": {
     "title": "Daily Route Overview",
     "mode": "transit",
@@ -147,7 +168,7 @@ Each item must follow this shape:
   "tag": "walk",
   "tagText": "散策",
   "title": "Walk around Shinsaibashi",
-  "jp": "心斎橋散策",
+  "subtitle": "Shinsaibashi walk",
   "note": "Use the user's note when provided. Keep inferred details short.",
   "links": [
     {
@@ -190,12 +211,14 @@ Blocking requirements:
 - Each day has at least two of: date, day number, city or area.
 - Every itinerary item has at least one external link.
 - Every day has `routeOverview.stops` for mobile route opening.
-- `confirmed_theme_id` exists and matches a Theme Brief option.
+- `confirmed_option_id` exists and matches a UI Brief option, or the user is still in preview selection.
+- The confirmed UI Brief option has all required UI categories and a supported `layout_profile`.
+- The UI options are visibly distinct and do not reuse reserved default palettes.
 - `selected_asset_id` exists for the site hero and every day hero.
-- The user has confirmed one visual theme from Theme Brief options.
+- The user has seen 3 UI previews and confirmed one UI option, requested a recorded mix, or explicitly delegated the recommended default.
 - The user has confirmed a real image for the whole-site hero and each day hero.
 - Desktop output behavior is confirmed.
-- Vercel production deployment is confirmed.
+- If deployment is requested, Vercel production deployment is confirmed.
 - Major ambiguous places are resolved enough to avoid publishing misleading content.
 
 Optional gaps:
@@ -214,10 +237,12 @@ Before generation, show:
 I will generate:
 - Trip: <trip_title>
 - Days: <count>
-- Theme: <confirmed_theme_id>
+- UI: <confirmed_option_id>
+- UI Brief: <layout_profile>, <palette summary>, <typography>, <density>, <navigation>, <hero_treatment>, <card_treatment>, <link_treatment>, <map_treatment>, <motion_level>, <motifs>
+- UI previews: <option-a path>, <option-b path>, <option-c path>
 - Media: <siteHero selected_asset_id>, <day hero selected_asset_id list>
 - Output folder: <output_desktop_folder>
-- Deployment: Vercel production
+- Deployment: <local only or Vercel production>
 - Included: day navigation, timeline checklist, route overview, map/search links, mobile layout
 - Assumptions: <short list>
 - Unresolved optional items: <short list>

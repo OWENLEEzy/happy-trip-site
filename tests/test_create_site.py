@@ -10,6 +10,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "skill" / "happy-trip-site" / "scripts" / "create_site.py"
+PREVIEW_SCRIPT = ROOT / "skill" / "happy-trip-site" / "scripts" / "create_ui_previews.py"
 FIXTURE = ROOT / "tests" / "fixtures" / "osaka-nara-trip-brief.json"
 
 
@@ -30,32 +31,100 @@ def write_image(path: Path) -> None:
     path.write_bytes(PNG_BYTES)
 
 
-def write_theme_brief(path: Path, confirmed: bool = True) -> Path:
-    theme = {
-        "recommended_theme_id": "urban-bay-neon",
-        "confirmed_theme_id": "urban-bay-neon" if confirmed else "",
-        "theme_options": [
+def write_ui_brief(path: Path, confirmed: bool = True) -> Path:
+    ui = {
+        "recommended_option_id": "urban-bay-neon",
+        "confirmed_option_id": "urban-bay-neon" if confirmed else "",
+        "ui_options": [
             {
                 "id": "urban-bay-neon",
                 "name": "城市海湾夜行",
                 "reason": "Dense city route with food, transit, and night walking.",
+                "layout_profile": "bay-garden-evening",
                 "palette": {
-                    "background": "#F6F4EE",
-                    "surface": "#FFFFFF",
-                    "ink": "#171A1F",
-                    "muted": "#67717D",
-                    "accent": "#0E7C86",
-                    "accent2": "#D34F2F",
-                    "line": "rgba(23,26,31,.14)",
+                    "background": "#DFF7F2",
+                    "surface": "#FFFDF5",
+                    "ink": "#102A2B",
+                    "muted": "#557174",
+                    "accent": "#006D77",
+                    "accent2": "#FFB000",
+                    "line": "rgba(16,42,43,.16)",
                 },
                 "typography": {
                     "sans": "system-ui",
                     "serif": "serif",
                     "display": "system-ui",
                 },
+                "density": "spacious",
+                "navigation": "topbar-drawer",
+                "hero_treatment": "full-bleed-photo",
+                "card_treatment": "timeline-cards",
+                "link_treatment": "pill-cluster",
+                "map_treatment": "embed-with-stop-chips",
+                "motion_level": "subtle",
                 "motifs": ["bay", "metro", "night-lights"],
+            },
+            {
+                "id": "street-blocks",
+                "name": "街区色块",
+                "reason": "Color-block neighborhood direction.",
+                "layout_profile": "peranakan-tropical-blocks",
+                "palette": {
+                    "background": "#FFF8F0",
+                    "surface": "#FFFFFF",
+                    "ink": "#1E1B18",
+                    "muted": "#766A5D",
+                    "accent": "#008B8B",
+                    "accent2": "#F06C4F",
+                    "line": "rgba(30,27,24,.16)",
+                },
+                "typography": {"sans": "system-ui", "serif": "serif", "display": "system-ui"},
+                "density": "standard",
+                "navigation": "topbar-drawer",
+                "hero_treatment": "split-photo-panel",
+                "card_treatment": "block-cards",
+                "link_treatment": "pill-cluster",
+                "map_treatment": "stop-chips-first",
+                "motion_level": "expressive",
+                "motifs": ["blocks", "street-color", "local-food"],
+            },
+            {
+                "id": "metro-food-clean",
+                "name": "地铁美食清单",
+                "reason": "Route-first utility direction.",
+                "layout_profile": "metro-food-clean",
+                "palette": {
+                    "background": "#F4F6F2",
+                    "surface": "#FFFFFF",
+                    "ink": "#182024",
+                    "muted": "#667176",
+                    "accent": "#0B7A3B",
+                    "accent2": "#D9472E",
+                    "line": "rgba(24,32,36,.14)",
+                },
+                "typography": {"sans": "system-ui", "serif": "serif", "display": "system-ui"},
+                "density": "compact",
+                "navigation": "bottom-day-tabs",
+                "hero_treatment": "command-board",
+                "card_treatment": "checklist-rows",
+                "link_treatment": "route-first-toolbar",
+                "map_treatment": "route-panel-first",
+                "motion_level": "none",
+                "motifs": ["metro", "food", "checklist"],
             }
         ],
+    }
+    path.write_text(json.dumps(ui), encoding="utf-8")
+    return path
+
+
+def write_legacy_theme_brief(path: Path) -> Path:
+    ui_path = write_ui_brief(path)
+    ui = json.loads(ui_path.read_text(encoding="utf-8"))
+    theme = {
+        "recommended_theme_id": ui["recommended_option_id"],
+        "confirmed_theme_id": ui["confirmed_option_id"],
+        "theme_options": ui["ui_options"],
     }
     path.write_text(json.dumps(theme), encoding="utf-8")
     return path
@@ -119,7 +188,7 @@ def run_create(
     bad_media_url: bool = False,
 ):
     source_root = output_root / "media-source"
-    theme_path = write_theme_brief(output_root / "theme-brief.json", confirmed=theme_confirmed)
+    ui_path = write_ui_brief(output_root / "ui-brief.json", confirmed=theme_confirmed)
     media_path = write_media_brief(
         output_root / "media-brief.json",
         source_root,
@@ -132,8 +201,8 @@ def run_create(
             str(SCRIPT),
             "--trip-data",
             str(trip_data),
-            "--theme-brief",
-            str(theme_path),
+            "--ui-brief",
+            str(ui_path),
             "--media-brief",
             str(media_path),
             "--output-root",
@@ -156,6 +225,7 @@ class CreateSiteTest(unittest.TestCase):
             self.assertTrue((project / "assets/js/travel.js").exists())
             self.assertTrue((project / "assets/js/trip-data.js").exists())
             self.assertTrue((project / "trip-brief.json").exists())
+            self.assertTrue((project / "ui-brief.json").exists())
             self.assertTrue((project / "theme-brief.json").exists())
             self.assertTrue((project / "media-brief.json").exists())
             self.assertTrue((project / "media-manifest.json").exists())
@@ -173,12 +243,18 @@ class CreateSiteTest(unittest.TestCase):
             self.assertNotIn("ph-frame", js + css)
             self.assertNotIn('"heroImg"', data_js)
             self.assertIn("theme-badge", index + css)
-            self.assertIn("site-hero-media", js + css)
+            self.assertIn("landing-", js + css)
+            self.assertIn("day-feature", js + css)
             self.assertIn("window.TRIP_SITE_DATA", data_js)
             self.assertIn("Osaka Nara Three Day Trip", data_js)
             data = extract_trip_data(data_js)
+            self.assertEqual(data["ui"]["confirmed_option_id"], "urban-bay-neon")
+            self.assertEqual(data["ui"]["confirmedOptionId"], "urban-bay-neon")
+            self.assertEqual(data["ui"]["confirmed_option"]["layout_profile"], "bay-garden-evening")
+            self.assertEqual(data["ui"]["confirmedOption"], data["ui"]["confirmed_option"])
             self.assertEqual(data["theme"]["themeId"], "urban-bay-neon")
-            self.assertEqual(data["theme"]["palette"]["accent"], "#0E7C86")
+            self.assertEqual(data["theme"]["layoutProfile"], "bay-garden-evening")
+            self.assertEqual(data["theme"]["palette"]["accent"], "#006D77")
             self.assertEqual(data["media"]["siteHero"]["localPath"], "assets/media/site-hero-01.png")
             self.assertEqual(data["media"]["dayHeroes"]["day-1"]["localPath"], "assets/media/day-1-hero-01.png")
             manifest = json.loads((project / "media-manifest.json").read_text(encoding="utf-8"))
@@ -191,6 +267,36 @@ class CreateSiteTest(unittest.TestCase):
                         self.assertTrue(item["links"])
             brief = json.loads((project / "trip-brief.json").read_text(encoding="utf-8"))
             self.assertEqual(brief["trip_slug"], "osaka-nara-three-day")
+
+    def test_create_ui_previews_show_all_ui_categories(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            ui_path = write_ui_brief(tmp_path / "ui-brief.json")
+            media_path = write_media_brief(tmp_path / "media-brief.json", tmp_path / "media-source")
+            output_dir = tmp_path / "ui-previews"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(PREVIEW_SCRIPT),
+                    "--trip-data",
+                    str(FIXTURE),
+                    "--ui-brief",
+                    str(ui_path),
+                    "--media-brief",
+                    str(media_path),
+                    "--output-dir",
+                    str(output_dir),
+                ],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            preview = (output_dir / "option-a.html").read_text(encoding="utf-8")
+            for label in ["Layout", "Palette", "Typography", "Density", "Navigation", "Hero", "Cards", "Links", "Map", "Motion", "Motifs"]:
+                self.assertIn(label, preview)
+            self.assertIn("Osaka Nara Three Day Trip", preview)
+            self.assertTrue((output_dir / "preview-manifest.json").exists())
 
     def test_create_site_infers_route_overview_for_mobile_map_link(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -226,8 +332,8 @@ class CreateSiteTest(unittest.TestCase):
                     str(SCRIPT),
                     "--trip-data",
                     str(source),
-                    "--theme-brief",
-                    str(write_theme_brief(Path(tmp) / "theme-brief.json")),
+                    "--ui-brief",
+                    str(write_ui_brief(Path(tmp) / "ui-brief.json")),
                     "--media-brief",
                     str(write_media_brief(Path(tmp) / "media-brief.json", Path(tmp) / "media-source")),
                     "--output-root",
@@ -275,8 +381,8 @@ class CreateSiteTest(unittest.TestCase):
                     str(SCRIPT),
                     "--trip-data",
                     str(source),
-                    "--theme-brief",
-                    str(write_theme_brief(Path(tmp) / "theme-brief.json")),
+                    "--ui-brief",
+                    str(write_ui_brief(Path(tmp) / "ui-brief.json")),
                     "--media-brief",
                     str(write_media_brief(Path(tmp) / "media-brief.json", Path(tmp) / "media-source")),
                     "--output-root",
@@ -301,8 +407,8 @@ class CreateSiteTest(unittest.TestCase):
                     str(SCRIPT),
                     "--trip-data",
                     str(FIXTURE),
-                    "--theme-brief",
-                    str(write_theme_brief(Path(tmp) / "theme-brief.json")),
+                    "--ui-brief",
+                    str(write_ui_brief(Path(tmp) / "ui-brief.json")),
                     "--media-brief",
                     str(write_media_brief(Path(tmp) / "media-brief.json", Path(tmp) / "media-source")),
                     "--output-root",
@@ -315,7 +421,7 @@ class CreateSiteTest(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("already exists", result.stderr)
 
-    def test_create_site_requires_theme_brief(self):
+    def test_create_site_requires_ui_brief(self):
         with tempfile.TemporaryDirectory() as tmp:
             media_path = write_media_brief(Path(tmp) / "media-brief.json", Path(tmp) / "media-source")
             result = subprocess.run(
@@ -334,13 +440,101 @@ class CreateSiteTest(unittest.TestCase):
                 capture_output=True,
             )
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("--theme-brief is required", result.stderr)
+            self.assertIn("--ui-brief is required", result.stderr)
 
-    def test_create_site_rejects_unconfirmed_theme(self):
+    def test_create_site_accepts_legacy_theme_brief_alias_with_full_ui_fields(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source_root = Path(tmp) / "media-source"
+            theme_path = write_legacy_theme_brief(Path(tmp) / "theme-brief.json")
+            media_path = write_media_brief(Path(tmp) / "media-brief.json", source_root)
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    "--trip-data",
+                    str(FIXTURE),
+                    "--theme-brief",
+                    str(theme_path),
+                    "--media-brief",
+                    str(media_path),
+                    "--output-root",
+                    tmp,
+                ],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_create_site_rejects_unconfirmed_ui(self):
         with tempfile.TemporaryDirectory() as tmp:
             result = run_create(Path(tmp), theme_confirmed=False)
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("confirmed_theme_id", result.stderr)
+            self.assertIn("confirmed_option_id", result.stderr)
+
+    def test_create_site_rejects_reserved_default_ui_palette(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            ui_path = write_ui_brief(tmp_path / "ui-brief.json")
+            ui = json.loads(ui_path.read_text(encoding="utf-8"))
+            ui["ui_options"][0]["palette"] = {
+                "background": "#F6F4EE",
+                "surface": "#FFFFFF",
+                "ink": "#171A1F",
+                "muted": "#67717D",
+                "accent": "#0E7C86",
+                "accent2": "#D34F2F",
+                "line": "rgba(23,26,31,.14)",
+            }
+            ui_path.write_text(json.dumps(ui), encoding="utf-8")
+            media_path = write_media_brief(tmp_path / "media-brief.json", tmp_path / "media-source")
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    "--trip-data",
+                    str(FIXTURE),
+                    "--ui-brief",
+                    str(ui_path),
+                    "--media-brief",
+                    str(media_path),
+                    "--output-root",
+                    tmp,
+                ],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("reserved default palette", result.stderr)
+
+    def test_create_site_rejects_ui_options_without_distinct_layouts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            ui_path = write_ui_brief(tmp_path / "ui-brief.json")
+            ui = json.loads(ui_path.read_text(encoding="utf-8"))
+            ui["ui_options"][1]["layout_profile"] = "bay-garden-evening"
+            ui_path.write_text(json.dumps(ui), encoding="utf-8")
+            media_path = write_media_brief(tmp_path / "media-brief.json", tmp_path / "media-source")
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    "--trip-data",
+                    str(FIXTURE),
+                    "--ui-brief",
+                    str(ui_path),
+                    "--media-brief",
+                    str(media_path),
+                    "--output-root",
+                    tmp,
+                ],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("3 distinct layout_profile", result.stderr)
 
     def test_create_site_rejects_unconfirmed_media(self):
         with tempfile.TemporaryDirectory() as tmp:

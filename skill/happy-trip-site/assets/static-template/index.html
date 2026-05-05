@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Happy Trip Site</title>
-<link rel="stylesheet" href="./assets/css/travel.css">
+<link rel="stylesheet" href="./assets/css/travel.css?v=ui-brief-v3">
 </head>
 <body>
 
@@ -14,7 +14,7 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
   </button>
   <div class="top-title">
-    <span class="jp" id="topJp">DAY 01</span>
+    <span class="meta" id="topMeta">DAY 01</span>
     <span class="cn" id="topCn">Happy Trip</span>
   </div>
   <div class="theme-badge"><span id="themeBadgeText">TRIP</span></div>
@@ -24,7 +24,7 @@
 <div class="scrim" id="scrim"></div>
 <aside class="sidebar" id="sidebar" aria-label="日期选择">
   <div class="sb-head">
-    <h2 class="sb-kanji" id="sidebarTitle">旅<em>行程</em></h2>
+    <h2 class="sb-title" id="sidebarTitle">Happy<em>Trip</em></h2>
     <div class="sb-sub" id="sidebarSub">HAPPY TRIP</div>
     <div class="sb-meta">
       <span class="chip" id="sidebarPrimaryMeta">TRIP</span>
@@ -36,15 +36,16 @@
     <!-- days injected by JS -->
   </nav>
   <div class="sb-foot">
-    <span>旅 の 栞</span>
-    <span class="vline">しおり</span>
+    <span>CITY GARDEN</span>
+    <span class="vline">LOCAL LINKS</span>
   </div>
 </aside>
 
 <!-- main -->
 <main id="main"></main>
+<nav class="bottom-day-tabs" id="bottomDayTabs" aria-label="日期切换"></nav>
 
-<script src="./assets/js/trip-data.js"></script>
-<script src="./assets/js/travel.js"></script>
+<script src="./assets/js/trip-data.js?v=ui-brief-v3"></script>
+<script src="./assets/js/travel.js?v=ui-brief-v3"></script>
 </body>
 </html>

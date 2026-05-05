@@ -33,32 +33,36 @@ class SkillContractTest(unittest.TestCase):
         self.assertIn("visible link pill", skill_text)
         self.assertIn("routeOverview.stops", schema_text)
 
-    def test_theme_and_media_gate_is_documented_for_agents(self):
+    def test_ui_preview_and_media_gate_is_documented_for_agents(self):
         skill_text = (SKILL / "SKILL.md").read_text(encoding="utf-8")
         schema_text = (SKILL / "references" / "itinerary-schema.md").read_text(encoding="utf-8")
         extraction_text = (SKILL / "references" / "extraction-rules.md").read_text(encoding="utf-8")
 
-        self.assertIn("Theme Brief", skill_text)
+        self.assertIn("UI Brief", skill_text)
+        self.assertIn("create_ui_previews.py", skill_text)
         self.assertIn("Media Brief", skill_text)
-        self.assertIn("confirmed_theme_id", schema_text)
+        self.assertIn("confirmed_option_id", schema_text)
+        self.assertIn("hero_treatment", schema_text)
+        self.assertIn("map_treatment", schema_text)
         self.assertIn("selected_asset_id", schema_text)
         self.assertIn("不使用占位符", extraction_text)
         self.assertIn("真实图片", extraction_text)
 
-    def test_delegated_autonomy_does_not_bypass_visual_confirmations(self):
+    def test_delegated_autonomy_records_ui_choices(self):
         skill_text = (SKILL / "SKILL.md").read_text(encoding="utf-8")
         extraction_text = (SKILL / "references" / "extraction-rules.md").read_text(encoding="utf-8")
 
-        self.assertIn("Delegation does not waive confirmation", skill_text)
-        self.assertIn("does not waive theme or media confirmation", skill_text)
+        self.assertIn("Delegation does not hide UI decisions", skill_text)
+        self.assertIn("complete UI Brief", skill_text)
         self.assertIn("自己决定", extraction_text)
-        self.assertIn("must still ask the user to confirm", extraction_text)
+        self.assertIn("用推荐默认", extraction_text)
 
-    def test_readme_documents_theme_and_media_cli_inputs(self):
+    def test_readme_documents_ui_and_media_cli_inputs(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        self.assertIn("--theme-brief", readme)
+        self.assertIn("--ui-brief", readme)
         self.assertIn("--media-brief", readme)
-        self.assertIn("theme-brief.json", readme)
+        self.assertIn("ui-brief.json", readme)
+        self.assertIn("create_ui_previews.py", readme)
         self.assertIn("media-manifest.json", readme)
 
     def test_cross_agent_entrypoints_exist(self):

@@ -9,11 +9,72 @@ import shutil
 import sys
 from pathlib import Path
 from urllib.parse import quote_plus
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_ROOT = SKILL_ROOT / "assets" / "static-template"
+MEDIA_REQUEST_HEADERS = {
+    "User-Agent": "HappyTripSite/1.0 (+https://github.com/openai/codex)",
+}
+SUPPORTED_LAYOUT_PROFILES = {
+    "bay-garden-evening",
+    "peranakan-tropical-blocks",
+    "metro-food-clean",
+}
+REQUIRED_UI_OPTION_FIELDS = [
+    "layout_profile",
+    "palette",
+    "typography",
+    "density",
+    "navigation",
+    "hero_treatment",
+    "card_treatment",
+    "link_treatment",
+    "map_treatment",
+    "motion_level",
+    "motifs",
+]
+REQUIRED_PALETTE_FIELDS = ["background", "surface", "ink", "muted", "accent", "accent2", "line"]
+DISTINCT_UI_TREATMENT_FIELDS = [
+    "layout_profile",
+    "density",
+    "navigation",
+    "hero_treatment",
+    "card_treatment",
+    "link_treatment",
+    "map_treatment",
+    "motion_level",
+]
+RESERVED_DEFAULT_PALETTES = {
+    "template-neutral-fallback": {
+        "background": "#f2f2ef",
+        "surface": "#ffffff",
+        "ink": "#202426",
+        "muted": "#6a7072",
+        "accent": "#66737a",
+        "accent2": "#a27454",
+        "line": "rgba(32,36,38,.14)",
+    },
+    "legacy-template-fallback": {
+        "background": "#f6f4ee",
+        "surface": "#ffffff",
+        "ink": "#171a1f",
+        "muted": "#67717d",
+        "accent": "#0e7c86",
+        "accent2": "#d34f2f",
+        "line": "rgba(23,26,31,.14)",
+    },
+    "legacy-demo-fallback": {
+        "background": "#f7f5ef",
+        "surface": "#ffffff",
+        "ink": "#17201d",
+        "muted": "#63706a",
+        "accent": "#007a78",
+        "accent2": "#e05a3f",
+        "line": "rgba(23,32,29,.14)",
+    },
+}
 
 
 def slugify(value: str) -> str:
@@ -26,7 +87,25 @@ def maps_url(query: str) -> str:
 
 
 def item_query(item: dict, day: dict) -> str:
-    return str(item.get("title") or item.get("jp") or day.get("city") or "").strip()
+    return str(item.get("title") or item.get("subtitle") or item.get("jp") or day.get("city") or "").strip()
+
+
+def normalize_item_fields(item: dict) -> None:
+    if not item.get("subtitle") and item.get("jp"):
+        item["subtitle"] = item["jp"]
+    item.pop("jp", None)
+
+
+def normalize_day_fields(day: dict) -> None:
+    if not day.get("areaLabel") and day.get("cityJp"):
+        day["areaLabel"] = day["cityJp"]
+    if not day.get("themeLabel") and day.get("themeJp"):
+        day["themeLabel"] = day["themeJp"]
+    day.pop("cityJp", None)
+    day.pop("themeJp", None)
+    day.pop("heroImg", None)
+    for item in iter_day_items(day):
+        normalize_item_fields(item)
 
 
 def add_missing_maps_links(day: dict) -> None:
@@ -115,7 +194,7 @@ def load_trip_brief(path: Path) -> dict:
     data.pop("style_preset", None)
     for day in days:
         if isinstance(day, dict):
-            day.pop("heroImg", None)
+            normalize_day_fields(day)
             add_missing_maps_links(day)
             ensure_route_overview(day)
     return data
@@ -129,30 +208,122 @@ def load_json_object(path: Path, label: str) -> dict:
     return data
 
 
-def selected_theme_option(theme: dict) -> dict:
-    confirmed_id = str(theme.get("confirmed_theme_id") or "").strip()
+def normalize_ui_brief(raw: dict) -> dict:
+    if "ui_options" in raw or "confirmed_option_id" in raw:
+        return raw
+    # Backward-compatible alias for older Theme Brief files. The normalized
+    # contract is still UI Brief; callers must supply full UI option fields.
+    return {
+        "recommended_option_id": raw.get("recommended_option_id") or raw.get("recommended_theme_id"),
+        "confirmed_option_id": raw.get("confirmed_option_id") or raw.get("confirmed_theme_id"),
+        "ui_options": raw.get("ui_options") or raw.get("theme_options"),
+    }
+
+
+def normalize_token(value: object) -> str:
+    return re.sub(r"\s+", "", str(value or "").strip().lower())
+
+
+def palette_signature(palette: dict) -> tuple[str, ...]:
+    return tuple(normalize_token(palette.get(key)) for key in REQUIRED_PALETTE_FIELDS)
+
+
+def reserved_default_palette_name(palette: dict) -> str:
+    signature = palette_signature(palette)
+    for name, reserved_palette in RESERVED_DEFAULT_PALETTES.items():
+        if signature == palette_signature(reserved_palette):
+            return name
+    return ""
+
+
+def ui_treatment_signature(option: dict) -> tuple[str, ...]:
+    return tuple(normalize_token(option.get(field)) for field in DISTINCT_UI_TREATMENT_FIELDS)
+
+
+def validate_ui_option(option: dict, option_id: str) -> None:
+    missing_fields = [field for field in REQUIRED_UI_OPTION_FIELDS if field not in option]
+    if missing_fields:
+        raise ValueError(f"UI option {option_id} missing: " + ", ".join(missing_fields))
+    layout_profile = str(option.get("layout_profile") or "").strip()
+    if layout_profile not in SUPPORTED_LAYOUT_PROFILES:
+        raise ValueError(f"Unsupported layout_profile: {layout_profile}")
+    palette = option.get("palette")
+    if not isinstance(palette, dict):
+        raise ValueError(f"UI option {option_id} must contain palette.")
+    missing_palette = [key for key in REQUIRED_PALETTE_FIELDS if not palette.get(key)]
+    if missing_palette:
+        raise ValueError(f"UI option {option_id} palette missing: " + ", ".join(missing_palette))
+    reserved_palette = reserved_default_palette_name(palette)
+    if reserved_palette:
+        raise ValueError(
+            f"UI option {option_id} palette matches reserved default palette "
+            f"{reserved_palette}; choose destination-specific colors."
+        )
+    typography = option.get("typography")
+    if not isinstance(typography, dict) or not typography:
+        raise ValueError(f"UI option {option_id} must contain typography.")
+    motifs = option.get("motifs")
+    if not isinstance(motifs, list) or not motifs:
+        raise ValueError(f"UI option {option_id} must contain motifs.")
+    for field in ["density", "navigation", "hero_treatment", "card_treatment", "link_treatment", "map_treatment", "motion_level"]:
+        if not str(option.get(field) or "").strip():
+            raise ValueError(f"UI option {option_id} must contain {field}.")
+
+
+def validate_ui_options_set(options: list[dict]) -> None:
+    ids = [str(option.get("id") or "").strip() for option in options if isinstance(option, dict)]
+    duplicate_ids = sorted({option_id for option_id in ids if ids.count(option_id) > 1})
+    if duplicate_ids:
+        raise ValueError("UI Brief options must have unique ids: " + ", ".join(duplicate_ids))
+    if len(options) < 3:
+        return
+    layout_profiles = {str(option.get("layout_profile") or "").strip() for option in options if isinstance(option, dict)}
+    if len(layout_profiles) < 3:
+        raise ValueError("UI Brief options must include at least 3 distinct layout_profile values.")
+    palette_signatures = {
+        palette_signature(option.get("palette", {}))
+        for option in options
+        if isinstance(option, dict) and isinstance(option.get("palette"), dict)
+    }
+    if len(palette_signatures) < 3:
+        raise ValueError("UI Brief options must include at least 3 distinct palette choices.")
+    treatment_signatures = {ui_treatment_signature(option) for option in options if isinstance(option, dict)}
+    if len(treatment_signatures) < 3:
+        raise ValueError("UI Brief options must include at least 3 distinct UI treatment combinations.")
+
+
+def selected_ui_option(ui_brief: dict) -> dict:
+    confirmed_id = str(ui_brief.get("confirmed_option_id") or "").strip()
     if not confirmed_id:
-        raise ValueError("Theme Brief must contain confirmed_theme_id.")
-    options = theme.get("theme_options")
+        raise ValueError("UI Brief must contain confirmed_option_id.")
+    options = ui_brief.get("ui_options")
     if not isinstance(options, list) or not options:
-        raise ValueError("Theme Brief must contain theme_options.")
+        raise ValueError("UI Brief must contain ui_options.")
+    if len(options) < 3:
+        raise ValueError("UI Brief must contain at least 3 ui_options for preview selection.")
+    for option in options:
+        if not isinstance(option, dict) or not option.get("id"):
+            raise ValueError("UI Brief options must be objects with id.")
+        validate_ui_option(option, str(option["id"]))
+    validate_ui_options_set(options)
     for option in options:
         if isinstance(option, dict) and option.get("id") == confirmed_id:
-            palette = option.get("palette")
-            if not isinstance(palette, dict):
-                raise ValueError("Confirmed theme option must contain palette.")
-            required = ["background", "surface", "ink", "muted", "accent", "accent2", "line"]
-            missing = [key for key in required if not palette.get(key)]
-            if missing:
-                raise ValueError("Confirmed theme palette missing: " + ", ".join(missing))
             return option
-    raise ValueError(f"confirmed_theme_id does not match a theme option: {confirmed_id}")
+    raise ValueError(f"confirmed_option_id does not match a UI option: {confirmed_id}")
 
 
-def load_theme_brief(path: Path) -> tuple[dict, dict]:
-    theme = load_json_object(path, "Theme Brief")
-    option = selected_theme_option(theme)
-    return theme, option
+def load_ui_brief(path: Path) -> tuple[dict, dict]:
+    ui = normalize_ui_brief(load_json_object(path, "UI Brief"))
+    option = selected_ui_option(ui)
+    return ui, option
+
+
+def legacy_theme_brief(ui: dict) -> dict:
+    return {
+        "recommended_theme_id": ui.get("recommended_option_id"),
+        "confirmed_theme_id": ui.get("confirmed_option_id"),
+        "theme_options": ui.get("ui_options", []),
+    }
 
 
 def ensure_media_local_path(value: str, asset_id: str) -> str:
@@ -230,13 +401,33 @@ def media_manifest_asset(candidate: dict) -> dict:
     }
 
 
+def public_ui_option(option: dict) -> dict:
+    return {
+        "id": option["id"],
+        "name": option.get("name", option["id"]),
+        "reason": option.get("reason", ""),
+        "layout_profile": option["layout_profile"],
+        "palette": option["palette"],
+        "typography": option.get("typography", {}),
+        "density": option["density"],
+        "navigation": option["navigation"],
+        "hero_treatment": option["hero_treatment"],
+        "card_treatment": option["card_treatment"],
+        "link_treatment": option["link_treatment"],
+        "map_treatment": option["map_treatment"],
+        "motion_level": option["motion_level"],
+        "motifs": option.get("motifs", []),
+    }
+
+
 def download_media_assets(project: Path, assets: list[dict]) -> None:
     (project / "assets" / "media").mkdir(parents=True, exist_ok=True)
     for candidate in assets:
         target = project / candidate["local_path"]
         target.parent.mkdir(parents=True, exist_ok=True)
         try:
-            with urlopen(candidate["remote_url"], timeout=20) as response:
+            request = Request(candidate["remote_url"], headers=MEDIA_REQUEST_HEADERS)
+            with urlopen(request, timeout=20) as response:
                 target.write_bytes(response.read())
         except Exception as exc:
             raise RuntimeError(f"Failed to download media asset {candidate['asset_id']}: {exc}") from exc
@@ -264,20 +455,32 @@ def ensure_template() -> None:
         raise FileNotFoundError("Missing template files: " + ", ".join(missing))
 
 
-def write_trip_data(project: Path, brief: dict, theme_option: dict, media: dict) -> None:
+def write_trip_data(project: Path, brief: dict, ui: dict, ui_option: dict, media: dict) -> None:
     day_heroes = media.get("dayHeroes", {})
+    public_option = public_ui_option(ui_option)
     data = {
         "slug": brief["trip_slug"],
         "title": brief["trip_title"],
         "dateRange": brief.get("date_range", ""),
         "language": brief.get("language", "zh-CN"),
+        "ui": {
+            "recommended_option_id": ui.get("recommended_option_id"),
+            "confirmed_option_id": ui.get("confirmed_option_id"),
+            "confirmed_option": public_option,
+            "ui_options": [public_ui_option(option) for option in ui.get("ui_options", []) if isinstance(option, dict)],
+            "recommendedOptionId": ui.get("recommended_option_id"),
+            "confirmedOptionId": ui.get("confirmed_option_id"),
+            "confirmedOption": public_option,
+            "options": [public_ui_option(option) for option in ui.get("ui_options", []) if isinstance(option, dict)],
+        },
         "theme": {
-            "themeId": theme_option["id"],
-            "name": theme_option.get("name", theme_option["id"]),
-            "reason": theme_option.get("reason", ""),
-            "palette": theme_option["palette"],
-            "typography": theme_option.get("typography", {}),
-            "motifs": theme_option.get("motifs", []),
+            "themeId": ui_option["id"],
+            "name": ui_option.get("name", ui_option["id"]),
+            "reason": ui_option.get("reason", ""),
+            "layoutProfile": ui_option["layout_profile"],
+            "palette": ui_option["palette"],
+            "typography": ui_option.get("typography", {}),
+            "motifs": ui_option.get("motifs", []),
         },
         "media": {
             "siteHero": public_asset(selected_media_candidate(media["siteHero"], "siteHero")),
@@ -298,10 +501,10 @@ def write_trip_data(project: Path, brief: dict, theme_option: dict, media: dict)
     target.write_text(output, encoding="utf-8")
 
 
-def create_site(trip_data: Path, theme_brief: Path, media_brief: Path, output_root: Path, force: bool) -> Path:
+def create_site(trip_data: Path, ui_brief: Path, media_brief: Path, output_root: Path, force: bool) -> Path:
     ensure_template()
     brief = load_trip_brief(trip_data)
-    theme, theme_option = load_theme_brief(theme_brief)
+    ui, ui_option = load_ui_brief(ui_brief)
     media, media_assets = load_media_brief(media_brief, brief["days"])
     project = output_root.expanduser().resolve() / f"{brief['trip_slug']}-travel-site"
     if project.exists():
@@ -311,13 +514,17 @@ def create_site(trip_data: Path, theme_brief: Path, media_brief: Path, output_ro
     shutil.copytree(TEMPLATE_ROOT, project)
     generated_brief = copy.deepcopy(brief)
     download_media_assets(project, media_assets)
-    write_trip_data(project, generated_brief, theme_option, media)
+    write_trip_data(project, generated_brief, ui, ui_option, media)
     (project / "trip-brief.json").write_text(
         json.dumps(generated_brief, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
+    (project / "ui-brief.json").write_text(
+        json.dumps(ui, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
     (project / "theme-brief.json").write_text(
-        json.dumps(theme, ensure_ascii=False, indent=2) + "\n",
+        json.dumps(legacy_theme_brief(ui), ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
     (project / "media-brief.json").write_text(
@@ -335,17 +542,19 @@ def create_site(trip_data: Path, theme_brief: Path, media_brief: Path, output_ro
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Create a Happy Trip Site static project.")
     parser.add_argument("--trip-data", required=True, type=Path)
+    parser.add_argument("--ui-brief", required=False, type=Path)
     parser.add_argument("--theme-brief", required=False, type=Path)
     parser.add_argument("--media-brief", required=False, type=Path)
     parser.add_argument("--output-root", default=Path.home() / "Desktop", type=Path)
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args(argv)
     try:
-        if args.theme_brief is None:
-            raise ValueError("--theme-brief is required")
+        ui_brief = args.ui_brief or args.theme_brief
+        if ui_brief is None:
+            raise ValueError("--ui-brief is required")
         if args.media_brief is None:
             raise ValueError("--media-brief is required")
-        project = create_site(args.trip_data, args.theme_brief, args.media_brief, args.output_root, args.force)
+        project = create_site(args.trip_data, ui_brief, args.media_brief, args.output_root, args.force)
     except Exception as exc:
         print(str(exc), file=sys.stderr)
         return 1
