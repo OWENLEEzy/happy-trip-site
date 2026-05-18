@@ -1,6 +1,7 @@
 from pathlib import Path
 import base64
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -21,6 +22,20 @@ PNG_BYTES = base64.b64decode(
 def write_image(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(PNG_BYTES)
+
+
+def extract_trip_data(data_js: str) -> dict:
+    match = re.search(r"window\.HAPPY_TRIP_DATA\s*=\s*(\{.*\})\s*;\s*$", data_js, re.S)
+    if not match:
+        raise AssertionError("travel-data.js did not contain window.HAPPY_TRIP_DATA")
+    return json.loads(match.group(1))
+
+
+def write_trip_data(path: Path, data: dict) -> None:
+    path.write_text(
+        "window.HAPPY_TRIP_DATA = " + json.dumps(data, ensure_ascii=False, indent=2) + ";\n",
+        encoding="utf-8",
+    )
 
 
 def write_ui_brief(path: Path) -> Path:
@@ -107,47 +122,27 @@ def write_ui_brief(path: Path) -> Path:
 
 
 def write_media_brief(path: Path, source_root: Path) -> Path:
-    site_source = source_root / "site-hero.png"
-    day_source = source_root / "day-1-hero.png"
-    write_image(site_source)
-    write_image(day_source)
     media = {
         "siteHero": {
-            "confirmed": True,
-            "selected_asset_id": "site-hero-01",
-            "candidates": [
-                {
-                    "asset_id": "site-hero-01",
-                    "remote_url": site_source.resolve().as_uri(),
-                    "local_path": "assets/media/site-hero-01.png",
-                    "source": "Local test fixture",
-                    "credit": "Fixture image",
-                    "usage_note": "Used for automated tests.",
-                    "matched_query": "Osaka skyline",
-                    "reason": "Matches whole-trip hero.",
-                    "width": 1600,
-                    "height": 1000,
-                }
-            ],
+            "url": "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee",
+            "source_name": "Unsplash",
+            "source_url": "https://unsplash.com/",
+            "alt": "Osaka skyline at dusk",
+            "query": "Osaka skyline",
+            "reason": "Matches whole-trip hero.",
+            "width": 1600,
+            "height": 1000,
         },
         "dayHeroes": {
             "day-1": {
-                "confirmed": True,
-                "selected_asset_id": "day-1-hero-01",
-                "candidates": [
-                    {
-                        "asset_id": "day-1-hero-01",
-                        "remote_url": day_source.resolve().as_uri(),
-                        "local_path": "assets/media/day-1-hero-01.png",
-                        "source": "Local test fixture",
-                        "credit": "Fixture image",
-                        "usage_note": "Used for automated tests.",
-                        "matched_query": "Dotonbori night",
-                        "reason": "Matches day 1 city walking.",
-                        "width": 1600,
-                        "height": 1000,
-                    }
-                ],
+                "url": "https://images.unsplash.com/photo-1545569341-9eb8b30979d9",
+                "source_name": "Unsplash",
+                "source_url": "https://unsplash.com/",
+                "alt": "Dotonbori street lights at night",
+                "query": "Dotonbori night",
+                "reason": "Matches day 1 city walking.",
+                "width": 1600,
+                "height": 1000,
             }
         },
     }
@@ -195,7 +190,7 @@ class ValidateSiteTest(unittest.TestCase):
     def test_validate_missing_trip_data_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
             project = create_project(tmp)
-            (project / "assets/js/trip-data.js").unlink()
+            (project / "assets/js/travel-data.js").unlink()
             result = subprocess.run(
                 [sys.executable, str(VALIDATE), str(project)],
                 cwd=ROOT,
@@ -203,14 +198,16 @@ class ValidateSiteTest(unittest.TestCase):
                 capture_output=True,
             )
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("assets/js/trip-data.js", result.stderr)
+            self.assertIn("assets/js/travel-data.js", result.stderr)
 
     def test_validate_requires_mobile_link_contract(self):
         with tempfile.TemporaryDirectory() as tmp:
             project = create_project(tmp)
-            data_file = project / "assets/js/trip-data.js"
+            data_file = project / "assets/js/travel-data.js"
             data_file.write_text(
-                "window.TRIP_SITE_DATA = {\n"
+                "window.HAPPY_TRIP_DATA = {\n"
+                '  "meta": {"tripTitle": "Broken", "tripSlug": "broken", "language": "zh-CN"},\n'
+                '  "ui": {},\n'
                 '  "days": [{\n'
                 '    "n": 1,\n'
                 '    "morning": [{"title": "No link", "links": []}],\n'
@@ -244,7 +241,7 @@ class ValidateSiteTest(unittest.TestCase):
                 capture_output=True,
             )
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("TRIP_SITE_DATA.ui.confirmed_option must match ui-brief.json confirmed option", result.stderr)
+            self.assertIn("HAPPY_TRIP_DATA.ui.confirmed_option must match ui-brief.json confirmed option", result.stderr)
 
     def test_validate_rejects_reserved_default_ui_palette(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -302,7 +299,17 @@ class ValidateSiteTest(unittest.TestCase):
     def test_validate_missing_media_file_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
             project = create_project(tmp)
-            (project / "assets/media/site-hero-01.png").unlink()
+            data_file = project / "assets/js/travel-data.js"
+            data = extract_trip_data(data_file.read_text(encoding="utf-8"))
+            data["meta"]["hero"].pop("url", None)
+            data["meta"]["hero"].pop("src", None)
+            data["meta"]["hero"]["local_path"] = "assets/media/site-hero-01.png"
+            write_trip_data(data_file, data)
+            manifest_path = project / "media-manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["assets"][0].pop("url", None)
+            manifest["assets"][0]["local_path"] = "assets/media/site-hero-01.png"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
             result = subprocess.run(
                 [sys.executable, str(VALIDATE), str(project)],
                 cwd=ROOT,
@@ -315,10 +322,17 @@ class ValidateSiteTest(unittest.TestCase):
     def test_validate_media_outside_assets_media_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
             project = create_project(tmp)
-            data_file = project / "assets/js/trip-data.js"
-            data_js = data_file.read_text(encoding="utf-8")
-            data_js = data_js.replace("assets/media/site-hero-01.png", "assets/site-hero-01.png")
-            data_file.write_text(data_js, encoding="utf-8")
+            data_file = project / "assets/js/travel-data.js"
+            data = extract_trip_data(data_file.read_text(encoding="utf-8"))
+            data["meta"]["hero"].pop("url", None)
+            data["meta"]["hero"].pop("src", None)
+            data["meta"]["hero"]["local_path"] = "assets/site-hero-01.png"
+            write_trip_data(data_file, data)
+            manifest_path = project / "media-manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["assets"][0].pop("url", None)
+            manifest["assets"][0]["local_path"] = "assets/site-hero-01.png"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
             result = subprocess.run(
                 [sys.executable, str(VALIDATE), str(project)],
                 cwd=ROOT,
@@ -334,6 +348,8 @@ class ValidateSiteTest(unittest.TestCase):
             manifest_path = project / "media-manifest.json"
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             manifest["assets"][0].pop("source")
+            manifest["assets"][0].pop("source_name")
+            manifest["assets"][0].pop("source_url")
             manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
             result = subprocess.run(
                 [sys.executable, str(VALIDATE), str(project)],
@@ -342,7 +358,23 @@ class ValidateSiteTest(unittest.TestCase):
                 capture_output=True,
             )
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("media-manifest asset site-hero-01 missing source", result.stderr)
+            self.assertIn("media-manifest asset site-hero missing source_name or source_url", result.stderr)
+
+    def test_validate_manifest_url_must_match_trip_data(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = create_project(tmp)
+            manifest_path = project / "media-manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["assets"][0]["url"] = "https://example.com/different.jpg"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, str(VALIDATE), str(project)],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("url must match media-manifest.json", result.stderr)
 
     def test_validate_rejects_banned_final_visual_tokens(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -34,14 +34,14 @@ def smoke_test(url: str) -> list[str]:
     except Exception as exc:
         failures.append(f"Production URL fetch failed: {exc}")
 
-    data_url = url.rstrip("/") + "/assets/js/trip-data.js"
+    data_url = url.rstrip("/") + "/assets/js/travel-data.js"
     try:
         with urllib.request.urlopen(data_url, timeout=20) as response:
             response.read()
             if response.status != 200:
-                failures.append(f"trip-data.js returned HTTP {response.status}")
+                failures.append(f"travel-data.js returned HTTP {response.status}")
     except Exception as exc:
-        failures.append(f"trip-data.js fetch failed: {exc}")
+        failures.append(f"travel-data.js fetch failed: {exc}")
 
     return failures
 

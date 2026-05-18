@@ -78,9 +78,9 @@ RESERVED_DEFAULT_PALETTES = {
 
 
 def extract_trip_data(data_js: str) -> dict:
-    match = re.search(r"window\.TRIP_SITE_DATA\s*=\s*(\{.*\})\s*;\s*$", data_js, re.S)
+    match = re.search(r"window\.HAPPY_TRIP_DATA\s*=\s*(\{.*\})\s*;\s*$", data_js, re.S)
     if not match:
-        raise ValueError("assets/js/trip-data.js must assign window.TRIP_SITE_DATA.")
+        raise ValueError("assets/js/travel-data.js must assign window.HAPPY_TRIP_DATA.")
     return json.loads(match.group(1))
 
 
@@ -105,15 +105,19 @@ def validate_media_path(project: Path, local_path: str, failures: list[str]) -> 
         failures.append(f"Referenced media file does not exist: {local_path}")
 
 
+def is_network_url(value: object) -> bool:
+    return str(value or "").strip().startswith(("http://", "https://"))
+
+
 def iter_trip_media(data: dict):
-    site_hero = data.get("media", {}).get("siteHero")
+    site_hero = data.get("meta", {}).get("hero")
     if isinstance(site_hero, dict):
         yield site_hero
-    day_heroes = data.get("media", {}).get("dayHeroes", {})
-    if isinstance(day_heroes, dict):
-        for asset in day_heroes.values():
-            if isinstance(asset, dict):
-                yield asset
+    days = data.get("days", [])
+    if isinstance(days, list):
+        for day in days:
+            if isinstance(day, dict) and isinstance(day.get("hero"), dict):
+                yield day["hero"]
 
 
 def find_confirmed_ui_option(ui_brief: dict) -> dict:
@@ -144,6 +148,45 @@ def public_ui_option(option: dict) -> dict:
         "motion_level": option.get("motion_level"),
         "motifs": option.get("motifs", []),
     }
+
+
+def external_url(value: object) -> bool:
+    return str(value or "").startswith(("http://", "https://"))
+
+
+def normalize_url(value: object) -> str:
+    return str(value or "").strip()
+
+
+def displayed_routes(day: dict) -> list[dict]:
+    route = day.get("routeOverview")
+    if not isinstance(route, dict):
+        return []
+    routes = []
+    if isinstance(route.get("stops"), list):
+        routes.append(route)
+    if isinstance(route.get("sections"), list):
+        routes.extend(section for section in route["sections"] if isinstance(section, dict))
+    return routes
+
+
+def route_labels(day: dict) -> list[str]:
+    labels = []
+    for route in displayed_routes(day):
+        for stop in route.get("stops", []):
+            if isinstance(stop, dict) and stop.get("label"):
+                labels.append(str(stop["label"]))
+    return labels
+
+
+def iter_day_items(day: dict):
+    for bucket in ["morning", "afternoon", "evening"]:
+        items = day.get(bucket)
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if isinstance(item, dict):
+                yield item
 
 
 def normalize_token(value: object) -> str:
@@ -222,13 +265,15 @@ def validate(project: Path) -> list[str]:
         "index.html",
         "vercel.json",
         "assets/css/travel.css",
+        "assets/js/travel-data.js",
+        "assets/js/travel-ui-components.js",
+        "assets/js/travel-map.js",
         "assets/js/travel.js",
-        "assets/js/trip-data.js",
         "trip-brief.json",
         "ui-brief.json",
-        "theme-brief.json",
         "media-brief.json",
         "media-manifest.json",
+        "generation-result.json",
     ]
     for rel in required:
         if not (project / rel).exists():
@@ -239,9 +284,18 @@ def validate(project: Path) -> list[str]:
     index = (project / "index.html").read_text(encoding="utf-8")
     if 'name="viewport"' not in index:
         failures.append("index.html missing mobile viewport meta")
-    for rel in ["./assets/css/travel.css", "./assets/js/trip-data.js", "./assets/js/travel.js"]:
+    script_order = [
+        "./assets/js/travel-data.js",
+        "./assets/js/travel-ui-components.js",
+        "./assets/js/travel-map.js",
+        "./assets/js/travel.js",
+    ]
+    for rel in ["./assets/css/travel.css", *script_order]:
         if rel not in index:
             failures.append(f"index.html missing reference {rel}")
+    positions = [index.find(rel) for rel in script_order]
+    if any(pos < 0 for pos in positions) or positions != sorted(positions):
+        failures.append("index.html must load scripts in order: data, UI components, map, app")
 
     try:
         vercel = json.loads((project / "vercel.json").read_text(encoding="utf-8"))
@@ -253,30 +307,37 @@ def validate(project: Path) -> list[str]:
         failures.append("vercel.json must rewrite / to /index.html")
 
     try:
-        data = extract_trip_data((project / "assets/js/trip-data.js").read_text(encoding="utf-8"))
+        data = extract_trip_data((project / "assets/js/travel-data.js").read_text(encoding="utf-8"))
     except Exception as exc:
         failures.append(str(exc))
         return failures
 
     ui_brief = load_json_file(project / "ui-brief.json", "ui-brief.json", failures)
-    theme_brief = load_json_file(project / "theme-brief.json", "theme-brief.json", failures)
     media_manifest = load_json_file(project / "media-manifest.json", "media-manifest.json", failures)
+
+    meta = data.get("meta")
+    if not isinstance(meta, dict):
+        failures.append("HAPPY_TRIP_DATA.meta must be an object")
+    else:
+        for key in ["tripTitle", "tripSlug", "language"]:
+            if not meta.get(key):
+                failures.append(f"HAPPY_TRIP_DATA.meta.{key} is required")
 
     ui = data.get("ui")
     confirmed_ui = find_confirmed_ui_option(ui_brief) if ui_brief else {}
     if not isinstance(ui, dict):
-        failures.append("TRIP_SITE_DATA.ui must be an object")
+        failures.append("HAPPY_TRIP_DATA.ui must be an object")
     else:
         confirmed_option_id = ui.get("confirmed_option_id") or ui.get("confirmedOptionId")
         if not confirmed_option_id:
-            failures.append("TRIP_SITE_DATA.ui.confirmed_option_id is required")
+            failures.append("HAPPY_TRIP_DATA.ui.confirmed_option_id is required")
         if ui.get("confirmedOptionId") != confirmed_option_id:
-            failures.append("TRIP_SITE_DATA.ui.confirmedOptionId must mirror confirmed_option_id")
+            failures.append("HAPPY_TRIP_DATA.ui.confirmedOptionId must mirror confirmed_option_id")
         if ui.get("recommendedOptionId") != ui.get("recommended_option_id"):
-            failures.append("TRIP_SITE_DATA.ui.recommendedOptionId must mirror recommended_option_id")
+            failures.append("HAPPY_TRIP_DATA.ui.recommendedOptionId must mirror recommended_option_id")
         if ui_brief:
             if ui_brief.get("confirmed_option_id") != confirmed_option_id:
-                failures.append("TRIP_SITE_DATA.ui.confirmed_option_id must match ui-brief.json confirmed_option_id")
+                failures.append("HAPPY_TRIP_DATA.ui.confirmed_option_id must match ui-brief.json confirmed_option_id")
             options = ui_brief.get("ui_options")
             if not isinstance(options, list) or not options:
                 failures.append("ui-brief.json must contain ui_options")
@@ -293,59 +354,29 @@ def validate(project: Path) -> list[str]:
                 validate_ui_options_set(valid_options, "ui-brief.json ui_options", failures)
         confirmed_option = ui.get("confirmed_option") or ui.get("confirmedOption")
         if not isinstance(confirmed_option, dict):
-            failures.append("TRIP_SITE_DATA.ui.confirmed_option must be an object")
+            failures.append("HAPPY_TRIP_DATA.ui.confirmed_option must be an object")
         else:
-            validate_ui_option(confirmed_option, "TRIP_SITE_DATA.ui.confirmed_option", failures)
+            validate_ui_option(confirmed_option, "HAPPY_TRIP_DATA.ui.confirmed_option", failures)
             if confirmed_option_id and confirmed_option.get("id") != confirmed_option_id:
-                failures.append("TRIP_SITE_DATA.ui.confirmed_option.id must match confirmed_option_id")
+                failures.append("HAPPY_TRIP_DATA.ui.confirmed_option.id must match confirmed_option_id")
             if ui.get("confirmedOption") != confirmed_option:
-                failures.append("TRIP_SITE_DATA.ui.confirmedOption must mirror confirmed_option")
+                failures.append("HAPPY_TRIP_DATA.ui.confirmedOption must mirror confirmed_option")
             if confirmed_ui and confirmed_option != public_ui_option(confirmed_ui):
-                failures.append("TRIP_SITE_DATA.ui.confirmed_option must match ui-brief.json confirmed option")
+                failures.append("HAPPY_TRIP_DATA.ui.confirmed_option must match ui-brief.json confirmed option")
         data_options = ui.get("ui_options") or ui.get("options")
         if not isinstance(data_options, list) or not data_options:
-            failures.append("TRIP_SITE_DATA.ui.ui_options must contain UI options")
+            failures.append("HAPPY_TRIP_DATA.ui.ui_options must contain UI options")
         elif ui_brief and isinstance(ui_brief.get("ui_options"), list):
             validate_ui_options_set(
                 [option for option in data_options if isinstance(option, dict)],
-                "TRIP_SITE_DATA.ui.ui_options",
+                "HAPPY_TRIP_DATA.ui.ui_options",
                 failures,
             )
             expected_options = [public_ui_option(option) for option in ui_brief["ui_options"] if isinstance(option, dict)]
             if data_options != expected_options:
-                failures.append("TRIP_SITE_DATA.ui.ui_options must match ui-brief.json ui_options")
+                failures.append("HAPPY_TRIP_DATA.ui.ui_options must match ui-brief.json ui_options")
             if ui.get("options") != data_options:
-                failures.append("TRIP_SITE_DATA.ui.options must mirror ui_options")
-
-    theme = data.get("theme")
-    confirmed_theme = confirmed_ui
-    if not isinstance(theme, dict):
-        failures.append("TRIP_SITE_DATA.theme must be an object")
-    else:
-        theme_id = theme.get("themeId")
-        if not theme_id:
-            failures.append("TRIP_SITE_DATA.theme.themeId is required")
-        if theme_id and theme_brief:
-            if theme_brief.get("confirmed_theme_id") != theme_id:
-                failures.append("TRIP_SITE_DATA.theme.themeId must match theme-brief.json confirmed_theme_id")
-        layout_profile = theme.get("layoutProfile")
-        if not layout_profile:
-            failures.append("TRIP_SITE_DATA.theme.layoutProfile is required")
-        elif layout_profile not in SUPPORTED_LAYOUT_PROFILES:
-            failures.append(f"TRIP_SITE_DATA.theme.layoutProfile is unsupported: {layout_profile}")
-        if confirmed_theme:
-            confirmed_layout = confirmed_theme.get("layout_profile")
-            if not confirmed_layout:
-                failures.append("Confirmed theme option must contain layout_profile")
-            elif layout_profile and confirmed_layout != layout_profile:
-                failures.append("TRIP_SITE_DATA.theme.layoutProfile must match confirmed theme layout_profile")
-        palette = theme.get("palette")
-        if not isinstance(palette, dict):
-            failures.append("TRIP_SITE_DATA.theme.palette must be an object")
-        else:
-            for key in ["background", "surface", "ink", "muted", "accent", "accent2", "line"]:
-                if not palette.get(key):
-                    failures.append(f"TRIP_SITE_DATA.theme.palette missing {key}")
+                failures.append("HAPPY_TRIP_DATA.ui.options must mirror ui_options")
 
     manifest_assets = media_manifest.get("assets", []) if isinstance(media_manifest, dict) else []
     if not isinstance(manifest_assets, list) or not manifest_assets:
@@ -360,54 +391,101 @@ def validate(project: Path) -> list[str]:
             asset_id = asset.get("asset_id")
             if asset_id:
                 manifest_by_id[asset_id] = asset
-            for key in ["local_path", "source", "matched_query"]:
-                if not asset.get(key):
-                    failures.append(f"media-manifest asset {asset_id or '<missing>'} missing {key}")
-            if not (asset.get("credit") or asset.get("usage_note")):
-                failures.append(f"media-manifest asset {asset_id or '<missing>'} missing credit or usage_note")
+            url = asset.get("url")
+            local_path = asset.get("local_path")
+            if url and not is_network_url(url):
+                failures.append(f"media-manifest asset {asset_id or '<missing>'} url must start with http:// or https://")
+            if not url and not local_path:
+                failures.append(f"media-manifest asset {asset_id or '<missing>'} missing url or local_path")
+            if not asset.get("alt"):
+                failures.append(f"media-manifest asset {asset_id or '<missing>'} missing alt")
+            if not (asset.get("source_name") or asset.get("source_url") or asset.get("source")):
+                failures.append(f"media-manifest asset {asset_id or '<missing>'} missing source_name or source_url")
+            if not (asset.get("query") or asset.get("matched_query")):
+                failures.append(f"media-manifest asset {asset_id or '<missing>'} missing query")
+            source_type = asset.get("source_type")
+            if source_type not in {"ai-generated", "user-provided", "external"}:
+                failures.append(f"media-manifest asset {asset_id or '<missing>'} has invalid source_type")
+            if source_type == "ai-generated" and not asset.get("prompt"):
+                failures.append(f"media-manifest ai-generated asset {asset_id or '<missing>'} missing prompt")
             if asset.get("local_path"):
                 validate_media_path(project, asset["local_path"], failures)
 
     media_assets = list(iter_trip_media(data))
     if not media_assets:
-        failures.append("TRIP_SITE_DATA.media must reference at least one media asset")
+        failures.append("HAPPY_TRIP_DATA must reference at least one media asset")
     for asset in media_assets:
-        asset_id = asset.get("assetId")
-        local_path = asset.get("localPath")
+        asset_id = asset.get("asset_id") or asset.get("assetId")
+        image_url = asset.get("url") or asset.get("src")
+        local_path = asset.get("local_path") or asset.get("localPath")
         if not asset_id:
-            failures.append("TRIP_SITE_DATA media asset missing assetId")
-        if not local_path:
-            failures.append(f"TRIP_SITE_DATA media asset {asset_id or '<missing>'} missing localPath")
-            continue
-        validate_media_path(project, local_path, failures)
+            failures.append("HAPPY_TRIP_DATA media asset missing asset_id")
+        if image_url and is_network_url(image_url):
+            pass
+        elif local_path:
+            validate_media_path(project, local_path, failures)
+        else:
+            failures.append(f"HAPPY_TRIP_DATA media asset {asset_id or '<missing>'} missing url or local_path")
+        if not asset.get("alt"):
+            failures.append(f"HAPPY_TRIP_DATA media asset {asset_id or '<missing>'} missing alt")
+        if not (asset.get("source_name") or asset.get("source_url") or asset.get("source") or asset.get("sourceName") or asset.get("sourceUrl")):
+            failures.append(f"HAPPY_TRIP_DATA media asset {asset_id or '<missing>'} missing source_name or source_url")
         if asset_id and asset_id not in manifest_by_id:
-            failures.append(f"TRIP_SITE_DATA media asset missing from manifest: {asset_id}")
+            failures.append(f"HAPPY_TRIP_DATA media asset missing from manifest: {asset_id}")
+        elif asset_id:
+            manifest_asset = manifest_by_id[asset_id]
+            manifest_url = manifest_asset.get("url")
+            if image_url and is_network_url(image_url) and manifest_url and image_url != manifest_url:
+                failures.append(f"HAPPY_TRIP_DATA media asset {asset_id} url must match media-manifest.json")
+            if local_path and manifest_asset.get("local_path") and local_path != manifest_asset["local_path"]:
+                failures.append(f"HAPPY_TRIP_DATA media asset {asset_id} local_path must match media-manifest.json")
+            if asset.get("alt") and manifest_asset.get("alt") and asset["alt"] != manifest_asset["alt"]:
+                failures.append(f"HAPPY_TRIP_DATA media asset {asset_id} alt must match media-manifest.json")
 
     days = data.get("days")
     if not isinstance(days, list) or not days:
-        failures.append("TRIP_SITE_DATA.days must contain at least one day")
+        failures.append("HAPPY_TRIP_DATA.days must contain at least one day")
     else:
         has_item = False
         missing_links = 0
         invalid_links = 0
+        duplicate_urls: set[str] = set()
+        seen_urls: set[str] = set()
         missing_routes = 0
         missing_route_stops = 0
         invalid_route_stops = 0
+        duplicate_stop_labels = 0
+        invalid_map_stop_labels = 0
+        unmatched_route_stops = 0
         for day in days:
             if not isinstance(day, dict):
-                failures.append("TRIP_SITE_DATA.days entries must be objects")
+                failures.append("HAPPY_TRIP_DATA.days entries must be objects")
                 continue
-            route = day.get("routeOverview")
-            if not isinstance(route, dict):
+            routes = displayed_routes(day)
+            labels = route_labels(day)
+            labels_set = set(labels)
+            if not routes:
                 missing_routes += 1
             else:
-                stops = route.get("stops")
-                if not isinstance(stops, list) or not stops:
-                    missing_route_stops += 1
-                else:
-                    for stop in stops:
-                        if not isinstance(stop, dict) or not stop.get("query") or not stop.get("label"):
-                            invalid_route_stops += 1
+                if len(labels) != len(labels_set):
+                    duplicate_stop_labels += 1
+                for route in routes:
+                    stops = route.get("stops")
+                    if not isinstance(stops, list) or not stops:
+                        missing_route_stops += 1
+                    else:
+                        for stop in stops:
+                            if not isinstance(stop, dict) or not stop.get("query") or not stop.get("label"):
+                                invalid_route_stops += 1
+                            if (
+                                isinstance(stop, dict)
+                                and not stop.get("inferred")
+                                and not any(
+                                    stop.get("label") in (item.get("mapStopLabels") or [])
+                                    for item in iter_day_items(day)
+                                )
+                            ):
+                                unmatched_route_stops += 1
             for key in ["morning", "afternoon", "evening"]:
                 items = day.get(key)
                 if not isinstance(items, list):
@@ -420,22 +498,40 @@ def validate(project: Path) -> list[str]:
                     links = item.get("links")
                     if not isinstance(links, list) or not links:
                         missing_links += 1
-                        continue
-                    for link in links:
-                        if not isinstance(link, dict) or not str(link.get("url", "")).startswith(("http://", "https://")):
-                            invalid_links += 1
+                    else:
+                        for link in links:
+                            url = normalize_url(link.get("url") if isinstance(link, dict) else "")
+                            if not isinstance(link, dict) or not external_url(url):
+                                invalid_links += 1
+                            elif url in seen_urls:
+                                duplicate_urls.add(url)
+                            else:
+                                seen_urls.add(url)
+                    item_labels = item.get("mapStopLabels")
+                    if isinstance(item_labels, list):
+                        for label in item_labels:
+                            if str(label) not in labels_set:
+                                invalid_map_stop_labels += 1
         if not has_item:
-            failures.append("TRIP_SITE_DATA must contain at least one itinerary item")
+            failures.append("HAPPY_TRIP_DATA must contain at least one itinerary item")
         if missing_links:
-            failures.append(f"TRIP_SITE_DATA contains {missing_links} itinerary item(s) without links")
+            failures.append(f"HAPPY_TRIP_DATA contains {missing_links} itinerary item(s) without links")
         if invalid_links:
-            failures.append(f"TRIP_SITE_DATA contains {invalid_links} invalid external link(s)")
+            failures.append(f"HAPPY_TRIP_DATA contains {invalid_links} invalid external link(s)")
+        if duplicate_urls:
+            failures.append(f"HAPPY_TRIP_DATA contains duplicate visible URL(s): {', '.join(sorted(duplicate_urls))}")
         if missing_routes:
-            failures.append(f"TRIP_SITE_DATA contains {missing_routes} day(s) without routeOverview")
+            failures.append(f"HAPPY_TRIP_DATA contains {missing_routes} day(s) without routeOverview")
         if missing_route_stops:
-            failures.append(f"TRIP_SITE_DATA contains {missing_route_stops} routeOverview object(s) without stops")
+            failures.append(f"HAPPY_TRIP_DATA contains {missing_route_stops} routeOverview object(s) without stops")
         if invalid_route_stops:
-            failures.append(f"TRIP_SITE_DATA contains {invalid_route_stops} invalid route stop(s)")
+            failures.append(f"HAPPY_TRIP_DATA contains {invalid_route_stops} invalid route stop(s)")
+        if duplicate_stop_labels:
+            failures.append(f"HAPPY_TRIP_DATA contains {duplicate_stop_labels} day route(s) with duplicate stop labels")
+        if invalid_map_stop_labels:
+            failures.append(f"HAPPY_TRIP_DATA contains {invalid_map_stop_labels} mapStopLabels value(s) without displayed route stop labels")
+        if unmatched_route_stops:
+            failures.append(f"HAPPY_TRIP_DATA contains {unmatched_route_stops} non-exempt route stop(s) without matching itinerary mapStopLabels")
 
     banned_tokens = [
         "sakura-canvas",
@@ -462,8 +558,10 @@ def validate(project: Path) -> list[str]:
         [
             index,
             (project / "assets/css/travel.css").read_text(encoding="utf-8"),
+            (project / "assets/js/travel-ui-components.js").read_text(encoding="utf-8"),
+            (project / "assets/js/travel-map.js").read_text(encoding="utf-8"),
             (project / "assets/js/travel.js").read_text(encoding="utf-8"),
-            (project / "assets/js/trip-data.js").read_text(encoding="utf-8"),
+            (project / "assets/js/travel-data.js").read_text(encoding="utf-8"),
         ]
     )
     for token in banned_tokens:
@@ -472,6 +570,9 @@ def validate(project: Path) -> list[str]:
     required_module_tokens = ["landing-", "quick-links-panel", "day-feature", "map-overview-card"]
     if not any(token in final_ui_text for token in required_module_tokens):
         failures.append("Final UI must contain at least one layout-profile driven module")
+    for token in ["window.HappyTripUIComponents", "window.HappyTripMap", "loadLeaflet", "renderMarkerMap", "fullscreen"]:
+        if token not in final_ui_text:
+            failures.append(f"Runtime missing map/UI module token: {token}")
 
     return failures
 

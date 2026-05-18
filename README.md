@@ -7,10 +7,32 @@ The generated site is meant to be opened on a phone during the trip. The importa
 ## What Is Included
 
 - Installable skill: `skill/happy-trip-site`
-- Static website template generalized for confirmed UI Briefs and confirmed real images
-- Trip Brief schema and extraction rules under `skill/happy-trip-site/references`
+- Static Travel Runtime generalized for confirmed UI Briefs and automatic network images
+- Runtime architecture, Trip Brief schema, extraction rules, and deployment notes under `skill/happy-trip-site/references`
 - Generator, validator, and Vercel deployment wrapper under `skill/happy-trip-site/scripts`
 - Unit tests and an end-to-end dry-run fixture under `tests`
+
+## Architecture
+
+The skill is built around a stable, destination-neutral Travel Runtime. Agents should vary only the generated data, UI Brief, media assets, and copy for each trip.
+
+Runtime files:
+
+- `index.html` loads the app shell and scripts.
+- `assets/css/travel.css` owns the mobile-first layout, UI tokens, drawer/map layering, timeline cards, link pills, and Leaflet map styling.
+- `assets/js/travel-ui-components.js` owns shared UI helpers, icons, link rendering, image rendering, and Google Maps URL helpers.
+- `assets/js/travel-map.js` owns lazy Leaflet loading, marker maps, fullscreen mode, map resizing, and map fallbacks.
+- `assets/js/travel.js` owns app state, sidebar navigation, shared resources, day rendering, checklist persistence, route overview, and timeline composition.
+- Generated `assets/js/travel-data.js` assigns `window.HAPPY_TRIP_DATA`.
+
+Generation flow:
+
+1. Trip Brief, UI Brief, and Media Brief are prepared.
+2. `create_site.py` normalizes inputs, copies the static runtime, writes direct image URLs into `travel-data.js`, and records image sources in `media-manifest.json`.
+3. `validate_site.py` verifies files, script order, data contract, UI options, media metadata, links, route coverage, `mapStopLabels`, and runtime module presence.
+4. `deploy_vercel.py` deploys only after explicit production confirmation.
+
+The detailed maintenance reference is `skill/happy-trip-site/references/architecture.md`.
 
 ## Agent Usage
 
@@ -46,7 +68,7 @@ cp -R skill/happy-trip-site ~/.claude/skills/happy-trip-site
 Minimal prompt:
 
 ```text
-Create a mobile travel site from this itinerary. Ask follow-up questions until the trip brief is complete, generate three destination-specific UI previews, find real image candidates, then generate and validate the static site after I confirm the UI and media.
+Create a mobile travel site from this itinerary. Ask follow-up questions until the trip brief is complete, generate three destination-specific UI previews, automatically select stable network images, then generate and validate the static site after I confirm the UI and final summary.
 ```
 
 Validate a generated site before claiming completion:
@@ -63,8 +85,8 @@ The agent should:
 2. Ask follow-up questions until required trip details are complete.
 3. Recommend exactly 3 UI Brief options from the destination, trip tone, season, and activity mix.
 4. Generate local UI preview files with real trip content so the user can choose A/B/C, request a mix, or explicitly delegate the recommended default.
-5. Search for real image candidates and ask the user to confirm each required Media Brief selection.
-6. Show a confirmation summary covering Trip Brief, full UI Brief category choices, Media Brief, output folder, and deployment target before generating files or deploying.
+5. Automatically select stable network image URLs for the whole-trip hero and each day hero.
+6. Show a confirmation summary covering Trip Brief, full UI Brief category choices, automatic network images, output folder, and deployment target before generating files or deploying.
 7. Generate a new Desktop folder named `<trip-slug>-travel-site`.
 8. Validate the generated static site.
 9. Deploy to Vercel production only after confirmation.
@@ -106,7 +128,7 @@ python3 skill/happy-trip-site/scripts/create_ui_previews.py \
   --output-dir .tmp/<trip-slug>/ui-previews
 ```
 
-The generated folder includes `ui-brief.json`, a backward-compatible `theme-brief.json`, `media-brief.json`, `media-manifest.json`, and downloaded image files under `assets/media/`.
+The generated folder includes `ui-brief.json`, `media-brief.json`, `media-manifest.json`, `generation-result.json`, and `assets/js/travel-data.js`. New generation writes direct network image URLs; older local media paths under `assets/media/` remain supported for compatibility.
 
 UI options are validated as real design choices, not labels. The generator rejects template fallback colors, old demo palettes, duplicate layout profiles, duplicate palettes, and duplicate treatment combinations.
 
@@ -151,14 +173,11 @@ Run an end-to-end local dry run:
 
 ```bash
 rm -rf /tmp/happy-trip-site-ui-media-e2e
-mkdir -p /tmp/happy-trip-site-ui-media-e2e/media-source
+mkdir -p /tmp/happy-trip-site-ui-media-e2e
 python3 - <<'PY'
-import base64, json
+import json
 from pathlib import Path
 root = Path("/tmp/happy-trip-site-ui-media-e2e")
-png = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=")
-for name in ["site-hero.png", "day-1-hero.png"]:
-    (root / "media-source" / name).write_bytes(png)
 ui = {
     "recommended_option_id": "urban-bay-neon",
     "confirmed_option_id": "urban-bay-neon",
@@ -235,33 +254,21 @@ ui = {
 }
 media = {
     "siteHero": {
-        "confirmed": True,
-        "selected_asset_id": "site-hero-01",
-        "candidates": [{
-            "asset_id": "site-hero-01",
-            "remote_url": (root / "media-source" / "site-hero.png").resolve().as_uri(),
-            "local_path": "assets/media/site-hero-01.png",
-            "source": "Local e2e fixture",
-            "credit": "Fixture image",
-            "usage_note": "Used for local smoke validation.",
-            "matched_query": "Osaka skyline",
-            "reason": "Matches whole-trip hero."
-        }]
+        "url": "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee",
+        "source_name": "Unsplash",
+        "source_url": "https://unsplash.com/",
+        "alt": "Osaka skyline at dusk",
+        "query": "Osaka skyline",
+        "reason": "Matches whole-trip hero."
     },
     "dayHeroes": {
         "day-1": {
-            "confirmed": True,
-            "selected_asset_id": "day-1-hero-01",
-            "candidates": [{
-                "asset_id": "day-1-hero-01",
-                "remote_url": (root / "media-source" / "day-1-hero.png").resolve().as_uri(),
-                "local_path": "assets/media/day-1-hero-01.png",
-                "source": "Local e2e fixture",
-                "credit": "Fixture image",
-                "usage_note": "Used for local smoke validation.",
-                "matched_query": "Dotonbori night",
-                "reason": "Matches day 1 city walking."
-            }]
+            "url": "https://images.unsplash.com/photo-1545569341-9eb8b30979d9",
+            "source_name": "Unsplash",
+            "source_url": "https://unsplash.com/",
+            "alt": "Dotonbori street lights at night",
+            "query": "Dotonbori night",
+            "reason": "Matches day 1 city walking."
         }
     }
 }

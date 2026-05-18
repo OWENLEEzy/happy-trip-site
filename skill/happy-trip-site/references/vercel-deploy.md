@@ -26,5 +26,5 @@ After deploy:
 
 - Fetch the production URL and require HTTP 200.
 - Check the HTML contains `name="viewport"`.
-- Fetch `/assets/js/trip-data.js` and require HTTP 200.
+- Fetch `/assets/js/travel-data.js` and require HTTP 200.
 - Write `deployment-result.json` in the generated folder.

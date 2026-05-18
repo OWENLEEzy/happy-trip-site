@@ -4,7 +4,8 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Happy Trip Site</title>
-<link rel="stylesheet" href="./assets/css/travel.css?v=ui-brief-v3">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="stylesheet" href="./assets/css/travel.css?v=travel-runtime-v1">
 </head>
 <body>
 
@@ -32,12 +33,11 @@
     </div>
   </div>
   <nav class="sb-list" id="dayList">
-    <div class="sb-section-label">行 程 · ITINERARY</div>
-    <!-- days injected by JS -->
+    <div class="sb-section-label">Trip Navigation</div>
   </nav>
   <div class="sb-foot">
-    <span>CITY GARDEN</span>
-    <span class="vline">LOCAL LINKS</span>
+    <span>Travel Runtime</span>
+    <span class="vline">Mobile Links</span>
   </div>
 </aside>
 
@@ -45,7 +45,9 @@
 <main id="main"></main>
 <nav class="bottom-day-tabs" id="bottomDayTabs" aria-label="日期切换"></nav>
 
-<script src="./assets/js/trip-data.js?v=ui-brief-v3"></script>
-<script src="./assets/js/travel.js?v=ui-brief-v3"></script>
+<script src="./assets/js/travel-data.js?v=travel-runtime-v1"></script>
+<script src="./assets/js/travel-ui-components.js?v=travel-runtime-v1"></script>
+<script src="./assets/js/travel-map.js?v=travel-runtime-v1"></script>
+<script src="./assets/js/travel.js?v=travel-runtime-v1"></script>
 </body>
 </html>

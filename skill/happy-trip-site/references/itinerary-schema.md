@@ -30,7 +30,7 @@ Rules:
 - Provide 3 `ui_options` before generation and generate preview HTML files for them.
 - `recommended_option_id` is the agent's recommendation.
 - `confirmed_option_id` is required unless the user is still choosing.
-- The final generated site may only use the confirmed UI option. Theme Brief is a compatibility alias only.
+- The final generated site may only use the confirmed UI option. Theme Brief is a backward-compatible input alias only.
 
 ## UI Brief
 
@@ -83,46 +83,41 @@ Rules:
 - `palette` must be a visible destination-specific choice. Do not use the template fallback palette or old demo palettes as a selectable UI option.
 - The 3 UI options must be materially distinct: at least 3 distinct `layout_profile` values, 3 distinct palette signatures, and 3 distinct treatment combinations across density, navigation, hero, cards, links, map, and motion.
 - `motion_level` must respect `prefers-reduced-motion`; `none` must disable nonessential animation.
-- If the user says to use the recommended default, still record the full chosen UI option in `ui-brief.json` and generated `TRIP_SITE_DATA.ui`.
+- If the user says to use the recommended default, still record the full chosen UI option in `ui-brief.json` and generated `HAPPY_TRIP_DATA.ui`.
 
 ## Media Brief
 
-Media choices live in a separate Media Brief. Every required media slot must be confirmed and must point to a real selected asset. Do not use placeholders.
+Media choices live in a separate Media Brief. By default the agent selects stable network image URLs automatically; do not ask the user to approve individual image slots unless the user explicitly requests media control. Do not use placeholders.
 
 Rules:
 
-- `siteHero.confirmed` must be `true`.
-- Every day must have a confirmed `dayHeroes.day-N`.
-- Every selected candidate must include `remote_url`, `local_path`, `source`, `matched_query`, and at least one of `credit` or `usage_note`.
-- `local_path` must be under `assets/media/`.
-- Generation fails if a confirmed image cannot be downloaded.
+- `siteHero` must include direct image metadata.
+- Every day must have a `dayHeroes.day-N` image.
+- Each image must include `url`, `alt`, `query`, and at least one of `source_name` or `source_url`.
+- `url` must start with `http://` or `https://`.
+- Local media paths under `assets/media/` remain supported for older generated projects, but new generation should not download images by default.
+- Validation does not download remote images or block on remote availability.
 - Do not use placeholder images, sample images, generated blank cards, or old Kansai visual assets as final media.
 
 ```json
 {
   "siteHero": {
-    "confirmed": true,
-    "selected_asset_id": "site-hero-01",
-    "candidates": [
-      {
-        "asset_id": "site-hero-01",
-        "remote_url": "https://example.com/site-hero.jpg",
-        "local_path": "assets/media/site-hero-01.jpg",
-        "source": "Source site name",
-        "credit": "Photographer or owner",
-        "usage_note": "License or usage note",
-        "matched_query": "destination skyline",
-        "reason": "Matches the whole-trip visual direction.",
-        "width": 1600,
-        "height": 1000
-      }
-    ]
+    "url": "https://example.com/site-hero.jpg",
+    "source_name": "Wikimedia Commons",
+    "source_url": "https://example.com/source-page",
+    "alt": "Marina Bay skyline in Singapore",
+    "query": "Singapore Marina Bay skyline",
+    "reason": "Matches the whole-trip visual direction.",
+    "width": 1600,
+    "height": 1000
   },
   "dayHeroes": {
     "day-1": {
-      "confirmed": true,
-      "selected_asset_id": "day-1-hero-01",
-      "candidates": []
+      "url": "https://example.com/day-1.jpg",
+      "source_name": "Official tourism site",
+      "source_url": "https://example.com/day-1-source",
+      "alt": "Gardens by the Bay at dusk",
+      "query": "Singapore Gardens by the Bay dusk"
     }
   }
 }
@@ -214,9 +209,8 @@ Blocking requirements:
 - `confirmed_option_id` exists and matches a UI Brief option, or the user is still in preview selection.
 - The confirmed UI Brief option has all required UI categories and a supported `layout_profile`.
 - The UI options are visibly distinct and do not reuse reserved default palettes.
-- `selected_asset_id` exists for the site hero and every day hero.
+- Network image metadata exists for the site hero and every day hero.
 - The user has seen 3 UI previews and confirmed one UI option, requested a recorded mix, or explicitly delegated the recommended default.
-- The user has confirmed a real image for the whole-site hero and each day hero.
 - Desktop output behavior is confirmed.
 - If deployment is requested, Vercel production deployment is confirmed.
 - Major ambiguous places are resolved enough to avoid publishing misleading content.
@@ -240,7 +234,7 @@ I will generate:
 - UI: <confirmed_option_id>
 - UI Brief: <layout_profile>, <palette summary>, <typography>, <density>, <navigation>, <hero_treatment>, <card_treatment>, <link_treatment>, <map_treatment>, <motion_level>, <motifs>
 - UI previews: <option-a path>, <option-b path>, <option-c path>
-- Media: <siteHero selected_asset_id>, <day hero selected_asset_id list>
+- Images: automatically selected stable network images
 - Output folder: <output_desktop_folder>
 - Deployment: <local only or Vercel production>
 - Included: day navigation, timeline checklist, route overview, map/search links, mobile layout

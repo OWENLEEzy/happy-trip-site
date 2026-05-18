@@ -15,9 +15,9 @@ FIXTURE = ROOT / "tests" / "fixtures" / "osaka-nara-trip-brief.json"
 
 
 def extract_trip_data(data_js):
-    match = re.search(r"window\.TRIP_SITE_DATA\s*=\s*(\{.*\})\s*;\s*$", data_js, re.S)
+    match = re.search(r"window\.HAPPY_TRIP_DATA\s*=\s*(\{.*\})\s*;\s*$", data_js, re.S)
     if not match:
-        raise AssertionError("trip-data.js did not contain window.TRIP_SITE_DATA")
+        raise AssertionError("travel-data.js did not contain window.HAPPY_TRIP_DATA")
     return json.loads(match.group(1))
 
 
@@ -130,49 +130,29 @@ def write_legacy_theme_brief(path: Path) -> Path:
     return path
 
 
-def write_media_brief(path: Path, source_root: Path, confirmed: bool = True, bad_url: bool = False) -> Path:
-    site_source = source_root / "site-hero.png"
-    day_source = source_root / "day-1-hero.png"
-    write_image(site_source)
-    write_image(day_source)
-    site_url = (source_root / "missing-site-hero.png").resolve().as_uri() if bad_url else site_source.resolve().as_uri()
+def write_media_brief(path: Path, source_root: Path, bad_url: bool = False) -> Path:
+    site_url = "ftp://example.com/site-hero.jpg" if bad_url else "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee"
     media = {
         "siteHero": {
-            "confirmed": confirmed,
-            "selected_asset_id": "site-hero-01",
-            "candidates": [
-                {
-                    "asset_id": "site-hero-01",
-                    "remote_url": site_url,
-                    "local_path": "assets/media/site-hero-01.png",
-                    "source": "Local test fixture",
-                    "credit": "Fixture image",
-                    "usage_note": "Used for automated tests.",
-                    "matched_query": "Osaka skyline",
-                    "reason": "Matches whole-trip hero.",
-                    "width": 1600,
-                    "height": 1000,
-                }
-            ],
+            "url": site_url,
+            "source_name": "Unsplash",
+            "source_url": "https://unsplash.com/",
+            "alt": "Osaka skyline at dusk",
+            "query": "Osaka skyline",
+            "reason": "Matches whole-trip hero.",
+            "width": 1600,
+            "height": 1000,
         },
         "dayHeroes": {
             "day-1": {
-                "confirmed": confirmed,
-                "selected_asset_id": "day-1-hero-01",
-                "candidates": [
-                    {
-                        "asset_id": "day-1-hero-01",
-                        "remote_url": day_source.resolve().as_uri(),
-                        "local_path": "assets/media/day-1-hero-01.png",
-                        "source": "Local test fixture",
-                        "credit": "Fixture image",
-                        "usage_note": "Used for automated tests.",
-                        "matched_query": "Dotonbori night",
-                        "reason": "Matches day 1 city walking.",
-                        "width": 1600,
-                        "height": 1000,
-                    }
-                ],
+                "url": "https://images.unsplash.com/photo-1545569341-9eb8b30979d9",
+                "source_name": "Unsplash",
+                "source_url": "https://unsplash.com/",
+                "alt": "Dotonbori street lights at night",
+                "query": "Dotonbori night",
+                "reason": "Matches day 1 city walking.",
+                "width": 1600,
+                "height": 1000,
             }
         },
     }
@@ -184,7 +164,6 @@ def run_create(
     output_root: Path,
     trip_data: Path = FIXTURE,
     theme_confirmed: bool = True,
-    media_confirmed: bool = True,
     bad_media_url: bool = False,
 ):
     source_root = output_root / "media-source"
@@ -192,7 +171,6 @@ def run_create(
     media_path = write_media_brief(
         output_root / "media-brief.json",
         source_root,
-        confirmed=media_confirmed,
         bad_url=bad_media_url,
     )
     return subprocess.run(
@@ -223,18 +201,20 @@ class CreateSiteTest(unittest.TestCase):
             self.assertTrue((project / "index.html").exists())
             self.assertTrue((project / "vercel.json").exists())
             self.assertTrue((project / "assets/js/travel.js").exists())
-            self.assertTrue((project / "assets/js/trip-data.js").exists())
+            self.assertTrue((project / "assets/js/travel-data.js").exists())
+            self.assertTrue((project / "assets/js/travel-ui-components.js").exists())
+            self.assertTrue((project / "assets/js/travel-map.js").exists())
             self.assertTrue((project / "trip-brief.json").exists())
             self.assertTrue((project / "ui-brief.json").exists())
-            self.assertTrue((project / "theme-brief.json").exists())
+            self.assertFalse((project / "theme-brief.json").exists())
             self.assertTrue((project / "media-brief.json").exists())
             self.assertTrue((project / "media-manifest.json").exists())
-            self.assertTrue((project / "assets/media/site-hero-01.png").exists())
-            self.assertTrue((project / "assets/media/day-1-hero-01.png").exists())
+            self.assertFalse((project / "assets/media/site-hero.png").exists())
+            self.assertFalse((project / "assets/media/day-1-hero.png").exists())
             self.assertFalse((project / "assets/icons/kansai-bears.svg").exists())
             self.assertFalse((project / "assets/audio/bgm.mp3").exists())
             self.assertFalse((project / "assets/js/trip-data.template.js").exists())
-            data_js = (project / "assets/js/trip-data.js").read_text(encoding="utf-8")
+            data_js = (project / "assets/js/travel-data.js").read_text(encoding="utf-8")
             index = (project / "index.html").read_text(encoding="utf-8")
             css = (project / "assets/css/travel.css").read_text(encoding="utf-8")
             js = (project / "assets/js/travel.js").read_text(encoding="utf-8")
@@ -245,21 +225,23 @@ class CreateSiteTest(unittest.TestCase):
             self.assertIn("theme-badge", index + css)
             self.assertIn("landing-", js + css)
             self.assertIn("day-feature", js + css)
-            self.assertIn("window.TRIP_SITE_DATA", data_js)
+            self.assertIn("window.HAPPY_TRIP_DATA", data_js)
             self.assertIn("Osaka Nara Three Day Trip", data_js)
             data = extract_trip_data(data_js)
+            self.assertEqual(data["meta"]["tripTitle"], "Osaka Nara Three Day Trip")
+            self.assertEqual(data["meta"]["tripSlug"], "osaka-nara-three-day")
             self.assertEqual(data["ui"]["confirmed_option_id"], "urban-bay-neon")
             self.assertEqual(data["ui"]["confirmedOptionId"], "urban-bay-neon")
             self.assertEqual(data["ui"]["confirmed_option"]["layout_profile"], "bay-garden-evening")
             self.assertEqual(data["ui"]["confirmedOption"], data["ui"]["confirmed_option"])
-            self.assertEqual(data["theme"]["themeId"], "urban-bay-neon")
-            self.assertEqual(data["theme"]["layoutProfile"], "bay-garden-evening")
-            self.assertEqual(data["theme"]["palette"]["accent"], "#006D77")
-            self.assertEqual(data["media"]["siteHero"]["localPath"], "assets/media/site-hero-01.png")
-            self.assertEqual(data["media"]["dayHeroes"]["day-1"]["localPath"], "assets/media/day-1-hero-01.png")
+            self.assertEqual(data["meta"]["hero"]["url"], "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee")
+            self.assertEqual(data["meta"]["hero"]["alt"], "Osaka skyline at dusk")
+            self.assertNotIn("local_path", data["meta"]["hero"])
+            self.assertEqual(data["days"][0]["hero"]["url"], "https://images.unsplash.com/photo-1545569341-9eb8b30979d9")
             manifest = json.loads((project / "media-manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(len(manifest["assets"]), 2)
-            self.assertEqual(manifest["assets"][0]["source"], "Local test fixture")
+            self.assertEqual(manifest["assets"][0]["source_name"], "Unsplash")
+            self.assertEqual(manifest["assets"][0]["alt"], "Osaka skyline at dusk")
             for day in data["days"]:
                 self.assertTrue(day["routeOverview"]["stops"])
                 for bucket in ["morning", "afternoon", "evening"]:
@@ -344,7 +326,7 @@ class CreateSiteTest(unittest.TestCase):
                 capture_output=True,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
-            data_js = (Path(result.stdout.strip()) / "assets/js/trip-data.js").read_text(encoding="utf-8")
+            data_js = (Path(result.stdout.strip()) / "assets/js/travel-data.js").read_text(encoding="utf-8")
             data = extract_trip_data(data_js)
             day = data["days"][0]
             self.assertEqual(day["routeOverview"]["stops"][0]["query"], "Fushimi Inari Taisha")
@@ -393,7 +375,7 @@ class CreateSiteTest(unittest.TestCase):
                 capture_output=True,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
-            data_js = (Path(result.stdout.strip()) / "assets/js/trip-data.js").read_text(encoding="utf-8")
+            data_js = (Path(result.stdout.strip()) / "assets/js/travel-data.js").read_text(encoding="utf-8")
             data = extract_trip_data(data_js)
             self.assertEqual(data["days"][0]["routeOverview"]["stops"][0]["query"], "Namba Parks")
 
@@ -536,17 +518,16 @@ class CreateSiteTest(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("3 distinct layout_profile", result.stderr)
 
-    def test_create_site_rejects_unconfirmed_media(self):
+    def test_create_site_accepts_automatic_network_media_without_confirmation_gate(self):
         with tempfile.TemporaryDirectory() as tmp:
-            result = run_create(Path(tmp), media_confirmed=False)
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn("siteHero must be confirmed", result.stderr)
+            result = run_create(Path(tmp))
+            self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_create_site_fails_when_media_download_fails(self):
+    def test_create_site_rejects_non_http_image_url(self):
         with tempfile.TemporaryDirectory() as tmp:
             result = run_create(Path(tmp), bad_media_url=True)
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("Failed to download media asset site-hero-01", result.stderr)
+            self.assertIn("siteHero url must start with http:// or https://", result.stderr)
 
 
 if __name__ == "__main__":

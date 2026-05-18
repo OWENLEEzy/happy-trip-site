@@ -15,9 +15,9 @@ from create_site import (  # noqa: E402
     load_media_brief,
     load_trip_brief,
     load_ui_brief,
+    normalize_media_slot,
     normalize_ui_brief,
     public_ui_option,
-    selected_media_candidate,
     validate_ui_option,
 )
 
@@ -31,8 +31,12 @@ def esc(value: object) -> str:
 
 def selected_remote_media(media: dict, slot_name: str) -> dict:
     if slot_name == "siteHero":
-        return selected_media_candidate(media.get("siteHero"), "siteHero")
-    return selected_media_candidate(media.get("dayHeroes", {}).get(slot_name), slot_name)
+        return normalize_media_slot(media.get("siteHero"), "siteHero")
+    return normalize_media_slot(media.get("dayHeroes", {}).get(slot_name), slot_name)
+
+
+def media_preview_src(asset: dict) -> str:
+    return asset.get("url") or asset.get("remote_url") or asset.get("local_path") or ""
 
 
 def first_items(day: dict, limit: int = 2) -> list[dict]:
@@ -171,7 +175,7 @@ h1 {{ margin: 10px 0 0; font-family: var(--serif); font-size: clamp(34px, 7vw, 7
       <p class="reason">{esc(option.get('reason'))}</p>
       <div class="motifs">{motifs}</div>
     </div>
-    <div class="photo"><img src="{esc(hero.get('remote_url') or day_hero.get('remote_url'))}" alt="{esc(hero.get('matched_query') or option.get('name'))}"></div>
+    <div class="photo"><img src="{esc(media_preview_src(hero) or media_preview_src(day_hero))}" alt="{esc(hero.get('alt') or hero.get('query') or hero.get('matched_query') or option.get('name'))}"></div>
   </section>
   <section class="board">
     <div class="spec">

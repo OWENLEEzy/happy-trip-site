@@ -106,6 +106,7 @@ def normalize_day_fields(day: dict) -> None:
     day.pop("heroImg", None)
     for item in iter_day_items(day):
         normalize_item_fields(item)
+    bind_map_stop_labels(day)
 
 
 def add_missing_maps_links(day: dict) -> None:
@@ -151,6 +152,7 @@ def ensure_route_overview(day: dict) -> None:
                 stop["query"] = str(stop["label"]).strip()
             if not stop.get("label") and stop.get("query"):
                 stop["label"] = str(stop["query"]).strip()
+        bind_map_stop_labels(day)
         return
 
     stops = []
@@ -176,6 +178,46 @@ def ensure_route_overview(day: dict) -> None:
             "zoom": day.get("route_zoom") or 11,
             "stops": stops,
         }
+    bind_map_stop_labels(day)
+
+
+def route_stop_labels(day: dict) -> set[str]:
+    labels: set[str] = set()
+    route = day.get("routeOverview")
+    if not isinstance(route, dict):
+        return labels
+    routes = []
+    if isinstance(route.get("stops"), list):
+        routes.append(route)
+    if isinstance(route.get("sections"), list):
+        routes.extend(section for section in route["sections"] if isinstance(section, dict))
+    for route_like in routes:
+        for stop in route_like.get("stops", []):
+            if isinstance(stop, dict) and stop.get("label"):
+                labels.add(str(stop["label"]))
+    return labels
+
+
+def bind_map_stop_labels(day: dict) -> None:
+    labels = route_stop_labels(day)
+    if not labels:
+        return
+    normalized = {label.casefold(): label for label in labels}
+    for item in iter_day_items(day):
+        existing = item.get("mapStopLabels")
+        if isinstance(existing, list) and existing:
+            continue
+        candidates = [str(item.get("title") or ""), str(item.get("subtitle") or "")]
+        item_links = item.get("links", [])
+        if isinstance(item_links, list):
+            candidates.extend(str(link.get("label") or "") for link in item_links if isinstance(link, dict))
+        matched = []
+        joined = " ".join(candidates).casefold()
+        for key, label in normalized.items():
+            if key and key in joined:
+                matched.append(label)
+        if matched:
+            item["mapStopLabels"] = matched
 
 
 def load_trip_brief(path: Path) -> dict:
@@ -326,6 +368,16 @@ def legacy_theme_brief(ui: dict) -> dict:
     }
 
 
+def is_network_url(value: object) -> bool:
+    return str(value or "").strip().startswith(("http://", "https://"))
+
+
+def media_asset_id(slot_name: str) -> str:
+    if slot_name == "siteHero":
+        return "site-hero"
+    return f"{slot_name}-hero"
+
+
 def ensure_media_local_path(value: str, asset_id: str) -> str:
     local_path = str(value or "").strip()
     if not local_path:
@@ -334,6 +386,40 @@ def ensure_media_local_path(value: str, asset_id: str) -> str:
     if path.is_absolute() or ".." in path.parts or path.parts[:2] != ("assets", "media"):
         raise ValueError(f"Media asset {asset_id} local_path must stay under assets/media/.")
     return local_path
+
+
+def normalize_network_media_asset(slot: dict, slot_name: str) -> dict:
+    image_url = str(slot.get("url") or slot.get("remote_url") or "").strip()
+    local_path = str(slot.get("local_path") or slot.get("localPath") or "").strip()
+    asset_id = str(slot.get("asset_id") or slot.get("assetId") or media_asset_id(slot_name)).strip()
+    if not image_url and not local_path:
+        raise ValueError(f"{slot_name} must contain url or local_path.")
+    if image_url and not is_network_url(image_url):
+        raise ValueError(f"{slot_name} url must start with http:// or https://.")
+    if local_path:
+        local_path = ensure_media_local_path(local_path, asset_id)
+    alt = str(slot.get("alt") or "").strip()
+    if not alt:
+        raise ValueError(f"{slot_name} must contain alt.")
+    source_name = str(slot.get("source_name") or slot.get("source") or "").strip()
+    source_url = str(slot.get("source_url") or "").strip()
+    if not (source_name or source_url):
+        raise ValueError(f"{slot_name} must contain source_name or source_url.")
+    query = str(slot.get("query") or slot.get("matched_query") or "").strip()
+    if not query:
+        raise ValueError(f"{slot_name} must contain query.")
+    return {
+        "asset_id": asset_id,
+        "url": image_url,
+        "local_path": local_path,
+        "source_name": source_name,
+        "source_url": source_url,
+        "alt": alt,
+        "query": query,
+        "reason": str(slot.get("reason") or "").strip(),
+        "width": slot.get("width"),
+        "height": slot.get("height"),
+    }
 
 
 def selected_media_candidate(slot: dict, slot_name: str) -> dict:
@@ -359,21 +445,39 @@ def selected_media_candidate(slot: dict, slot_name: str) -> dict:
             raise ValueError(f"Media asset {selected_asset_id} must contain credit or usage_note.")
         selected = dict(candidate)
         selected["local_path"] = ensure_media_local_path(selected.get("local_path", ""), selected_asset_id)
+        selected["asset_id"] = selected_asset_id
+        selected["url"] = ""
+        selected["source_name"] = selected.get("source", "")
+        selected["source_url"] = selected.get("source_url", "")
+        selected["alt"] = selected.get("alt") or selected.get("matched_query", "")
+        selected["query"] = selected.get("matched_query", "")
         return selected
     raise ValueError(f"{slot_name} selected_asset_id does not match any candidate: {selected_asset_id}")
 
 
-def load_media_brief(path: Path, days: list[dict]) -> tuple[dict, list[dict]]:
-    media = load_json_object(path, "Media Brief")
+def normalize_media_slot(slot: dict, slot_name: str) -> dict:
+    if not isinstance(slot, dict):
+        raise ValueError(f"{slot_name} must be an object.")
+    if "selected_asset_id" in slot or "candidates" in slot or "confirmed" in slot:
+        return selected_media_candidate(slot, slot_name)
+    return normalize_network_media_asset(slot, slot_name)
+
+
+def load_media_brief_from_object(media: dict, days: list[dict]) -> tuple[dict, list[dict]]:
     assets: list[dict] = []
-    assets.append(selected_media_candidate(media.get("siteHero"), "siteHero"))
+    assets.append(normalize_media_slot(media.get("siteHero"), "siteHero"))
     day_heroes = media.get("dayHeroes")
     if not isinstance(day_heroes, dict):
         raise ValueError("Media Brief must contain dayHeroes.")
     for day in days:
         key = f"day-{day.get('n')}"
-        assets.append(selected_media_candidate(day_heroes.get(key), key))
+        assets.append(normalize_media_slot(day_heroes.get(key), key))
     return media, assets
+
+
+def load_media_brief(path: Path, days: list[dict]) -> tuple[dict, list[dict]]:
+    media = load_json_object(path, "Media Brief")
+    return load_media_brief_from_object(media, days)
 
 
 def public_asset(candidate: dict) -> dict:
@@ -391,14 +495,22 @@ def public_asset(candidate: dict) -> dict:
 
 
 def media_manifest_asset(candidate: dict) -> dict:
-    return {
+    asset = {
         "asset_id": candidate["asset_id"],
-        "local_path": candidate["local_path"],
-        "source": candidate["source"],
+        "url": candidate.get("url", ""),
+        "local_path": candidate.get("local_path", ""),
+        "source_name": candidate.get("source_name", ""),
+        "source_url": candidate.get("source_url", ""),
+        "alt": candidate.get("alt", ""),
+        "query": candidate.get("query", ""),
+        "source_type": candidate.get("source_type", "external" if candidate.get("url") or str(candidate.get("remote_url", "")).startswith("http") else "user-provided"),
+        "source": candidate.get("source_name", candidate.get("source", "")),
         "credit": candidate.get("credit", ""),
         "usage_note": candidate.get("usage_note", ""),
-        "matched_query": candidate["matched_query"],
+        "prompt": candidate.get("prompt", ""),
+        "matched_query": candidate.get("query") or candidate.get("matched_query", ""),
     }
+    return {key: value for key, value in asset.items() if value not in ("", None)}
 
 
 def public_ui_option(option: dict) -> dict:
@@ -421,8 +533,13 @@ def public_ui_option(option: dict) -> dict:
 
 
 def download_media_assets(project: Path, assets: list[dict]) -> None:
+    local_assets = [asset for asset in assets if asset.get("local_path")]
+    if not local_assets:
+        return
     (project / "assets" / "media").mkdir(parents=True, exist_ok=True)
-    for candidate in assets:
+    for candidate in local_assets:
+        if candidate.get("url") or not candidate.get("remote_url"):
+            continue
         target = project / candidate["local_path"]
         target.parent.mkdir(parents=True, exist_ok=True)
         try:
@@ -448,6 +565,8 @@ def ensure_template() -> None:
         TEMPLATE_ROOT / "index.html",
         TEMPLATE_ROOT / "vercel.json",
         TEMPLATE_ROOT / "assets/css/travel.css",
+        TEMPLATE_ROOT / "assets/js/travel-ui-components.js",
+        TEMPLATE_ROOT / "assets/js/travel-map.js",
         TEMPLATE_ROOT / "assets/js/travel.js",
     ]
     missing = [str(path) for path in required if not path.exists()]
@@ -455,14 +574,50 @@ def ensure_template() -> None:
         raise FileNotFoundError("Missing template files: " + ", ".join(missing))
 
 
+def public_runtime_asset(candidate: dict) -> dict:
+    asset = {
+        "asset_id": candidate["asset_id"],
+        "url": candidate.get("url", ""),
+        "src": candidate.get("url") or candidate.get("local_path", ""),
+        "local_path": candidate.get("local_path", ""),
+        "source_type": candidate.get("source_type", "external" if candidate.get("url") or str(candidate.get("remote_url", "")).startswith("http") else "user-provided"),
+        "source_name": candidate.get("source_name", ""),
+        "source_url": candidate.get("source_url", ""),
+        "source": candidate.get("source_name", candidate.get("source", "")),
+        "credit": candidate.get("credit", ""),
+        "usage_note": candidate.get("usage_note", ""),
+        "prompt": candidate.get("prompt", ""),
+        "matched_query": candidate.get("query") or candidate.get("matched_query", ""),
+        "query": candidate.get("query", ""),
+        "alt": candidate.get("alt") or candidate.get("matched_query", ""),
+        "reason": candidate.get("reason", ""),
+        "width": candidate.get("width"),
+        "height": candidate.get("height"),
+    }
+    return {key: value for key, value in asset.items() if value not in ("", None)}
+
+
+def runtime_days(brief: dict, media_assets: list[dict]) -> list[dict]:
+    days = copy.deepcopy(brief["days"])
+    for day, asset in zip(days, media_assets[1:]):
+        day["hero"] = public_runtime_asset(asset)
+    return days
+
+
 def write_trip_data(project: Path, brief: dict, ui: dict, ui_option: dict, media: dict) -> None:
-    day_heroes = media.get("dayHeroes", {})
+    _, media_assets = load_media_brief_from_object(media, brief["days"])
+    site_hero = media_assets[0]
     public_option = public_ui_option(ui_option)
     data = {
-        "slug": brief["trip_slug"],
-        "title": brief["trip_title"],
-        "dateRange": brief.get("date_range", ""),
-        "language": brief.get("language", "zh-CN"),
+        "meta": {
+            "tripTitle": brief["trip_title"],
+            "tripSlug": brief["trip_slug"],
+            "dateRange": brief.get("date_range", ""),
+            "language": brief.get("language", "zh-CN"),
+            "assumptions": brief.get("assumptions", []),
+            "uncertainItems": brief.get("uncertain_items", []),
+            "hero": public_runtime_asset(site_hero),
+        },
         "ui": {
             "recommended_option_id": ui.get("recommended_option_id"),
             "confirmed_option_id": ui.get("confirmed_option_id"),
@@ -473,31 +628,13 @@ def write_trip_data(project: Path, brief: dict, ui: dict, ui_option: dict, media
             "confirmedOption": public_option,
             "options": [public_ui_option(option) for option in ui.get("ui_options", []) if isinstance(option, dict)],
         },
-        "theme": {
-            "themeId": ui_option["id"],
-            "name": ui_option.get("name", ui_option["id"]),
-            "reason": ui_option.get("reason", ""),
-            "layoutProfile": ui_option["layout_profile"],
-            "palette": ui_option["palette"],
-            "typography": ui_option.get("typography", {}),
-            "motifs": ui_option.get("motifs", []),
-        },
-        "media": {
-            "siteHero": public_asset(selected_media_candidate(media["siteHero"], "siteHero")),
-            "dayHeroes": {
-                key: public_asset(selected_media_candidate(slot, key))
-                for key, slot in day_heroes.items()
-                if isinstance(slot, dict)
-            },
-        },
-        "assumptions": brief.get("assumptions", []),
-        "uncertainItems": brief.get("uncertain_items", []),
-        "days": brief["days"],
+        "generalResources": brief.get("generalResources") or brief.get("general_resources") or {},
+        "days": runtime_days(brief, media_assets),
     }
-    output = "window.TRIP_SITE_DATA = "
+    output = "window.HAPPY_TRIP_DATA = "
     output += json.dumps(data, ensure_ascii=False, indent=2)
     output += ";\n"
-    target = project / "assets/js/trip-data.js"
+    target = project / "assets/js/travel-data.js"
     target.write_text(output, encoding="utf-8")
 
 
@@ -521,10 +658,6 @@ def create_site(trip_data: Path, ui_brief: Path, media_brief: Path, output_root:
     )
     (project / "ui-brief.json").write_text(
         json.dumps(ui, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
-    (project / "theme-brief.json").write_text(
-        json.dumps(legacy_theme_brief(ui), ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
     (project / "media-brief.json").write_text(

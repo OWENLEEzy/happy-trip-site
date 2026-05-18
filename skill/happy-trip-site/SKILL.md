@@ -28,12 +28,11 @@ Do not create files, run generation scripts, link a Vercel project, or deploy un
 5. You have generated local UI preview files, such as `.tmp/<trip-slug>/ui-previews/option-a.html`, `option-b.html`, and `option-c.html`, showing real trip content rather than abstract swatches.
 6. The user has chosen one `confirmed_option_id`, requested a mix that you have recorded as a full UI option, or explicitly delegated the recommended default.
 7. The confirmed UI option and the other preview options are materially distinct: do not reuse template fallback colors, old demo palettes, or identical layout/category combinations under different IDs.
-8. You have prepared real image candidates for the site hero and every day hero.
-9. The user has confirmed one `selected_asset_id` for each required media slot.
-10. You have shown the user a confirmation summary covering trip facts, full UI Brief category choices, media choices, output folder, assumptions, and deployment target.
-11. The user explicitly confirms generation. For production deployment, the user must explicitly confirm production deployment.
+8. You have selected stable network image URLs for the site hero and every day hero.
+9. You have shown the user a confirmation summary covering trip facts, the chosen UI Brief categories, automatic network images, output folder, assumptions, and deployment target.
+10. The user explicitly confirms generation. For production deployment, the user must explicitly confirm production deployment.
 
-Delegation does not hide UI decisions: user wording such as "你选", "用推荐默认", "自己决定", "先生成看看", or "测试 skill 能力" can delegate the recommended UI option, but the final input and generated output must still contain the complete UI Brief. Media confirmation remains independent unless the user explicitly delegates media selection too.
+Delegation does not hide UI decisions: user wording such as "你选", "用推荐默认", "自己决定", "先生成看看", or "测试 skill 能力" can delegate the recommended UI option, but the final input and generated output must still contain the complete UI Brief. Image selection is automatic by default; do not ask the user to approve individual image slots unless they explicitly request media control.
 
 If information is incomplete, ask one to three targeted questions. Explain why the missing information matters. Never use placeholder images, sample images, or the old Kansai visual style as a fallback.
 
@@ -45,8 +44,8 @@ If information is incomplete, ask one to three targeted questions. Explain why t
 4. Ask follow-up questions until blocking fields are complete.
 5. Recommend exactly 3 UI Brief options and mark one as recommended.
 6. Generate UI preview files with `scripts/create_ui_previews.py` and show the user the local paths.
-7. Search for real image candidates for the whole-site hero and every day hero.
-8. Show the confirmation summary, including the chosen UI option's `layout_profile`, `palette`, `typography`, `density`, `navigation`, `hero_treatment`, `card_treatment`, `link_treatment`, `map_treatment`, `motion_level`, and `motifs`.
+7. Automatically select stable network images for the whole-site hero and every day hero, preferring official tourism or venue pages, Wikimedia Commons, Unsplash, Pexels, then other stable public image hosts.
+8. Show the confirmation summary, including the chosen UI option's `layout_profile`, `palette`, `typography`, `density`, `navigation`, `hero_treatment`, `card_treatment`, `link_treatment`, `map_treatment`, `motion_level`, and `motifs`, plus "Images: automatically selected stable network images".
 9. After confirmation, write the Trip Brief, UI Brief, and Media Brief JSON to temporary files.
 10. Run `scripts/create_site.py` with `--trip-data`, `--ui-brief`, and `--media-brief`.
 11. Run `scripts/validate_site.py` on the generated folder.
@@ -54,11 +53,13 @@ If information is incomplete, ask one to three targeted questions. Explain why t
 13. If deployment was confirmed, run `scripts/deploy_vercel.py` to deploy with Vercel production.
 14. Return the local folder, preview paths, validation status, deployment URL when applicable, and any assumptions.
 
+For runtime maintenance, debugging, or contract changes, read `references/architecture.md` before editing scripts or template files. Ordinary trip generation does not require loading it.
+
 ## Generated Project Rules
 
 - Create each site in a new Desktop folder named `<trip-slug>-travel-site`.
 - Refuse to overwrite an existing folder unless the user explicitly asks for overwrite.
-- Keep the generated site self-contained.
+- Keep the generated site static and portable; image URLs may point to stable external network sources.
 - Use Google Maps search links for places without explicit links.
 - Keep all important guide references reachable from the single deployed site URL through visible mobile link buttons.
 - Preserve vague times such as "上午", "afternoon", or "一整天" instead of inventing clock times.
@@ -77,6 +78,29 @@ python3 skill/happy-trip-site/scripts/create_site.py \
   --output-root "$HOME/Desktop"
 ```
 
+Media Brief entries should use direct image URLs:
+
+```json
+{
+  "siteHero": {
+    "url": "https://example.com/image.jpg",
+    "source_name": "Wikimedia Commons",
+    "source_url": "https://example.com/source-page",
+    "alt": "Marina Bay skyline in Singapore",
+    "query": "Singapore Marina Bay skyline"
+  },
+  "dayHeroes": {
+    "day-1": {
+      "url": "https://example.com/day-1.jpg",
+      "source_name": "Official tourism site",
+      "source_url": "https://example.com/day-1-source",
+      "alt": "Gardens by the Bay at dusk",
+      "query": "Singapore Gardens by the Bay dusk"
+    }
+  }
+}
+```
+
 Create UI previews before generation:
 
 ```bash
@@ -87,7 +111,7 @@ python3 skill/happy-trip-site/scripts/create_ui_previews.py \
   --output-dir .tmp/<trip-slug>/ui-previews
 ```
 
-`--theme-brief` remains accepted by `create_site.py` only as a backward-compatible alias. New work should use `--ui-brief`.
+`--theme-brief` remains accepted by `create_site.py` only as a backward-compatible input alias. New generated output writes `ui-brief.json` and `assets/js/travel-data.js`.
 
 Validate:
 

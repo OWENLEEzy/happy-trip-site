@@ -16,7 +16,7 @@ class SkillContractTest(unittest.TestCase):
 
     def test_references_exist_and_are_linked(self):
         skill_text = (SKILL / "SKILL.md").read_text(encoding="utf-8")
-        for name in ["itinerary-schema.md", "extraction-rules.md", "vercel-deploy.md"]:
+        for name in ["architecture.md", "itinerary-schema.md", "extraction-rules.md", "vercel-deploy.md"]:
             self.assertIn(f"references/{name}", skill_text)
             self.assertTrue((SKILL / "references" / name).exists(), name)
 
@@ -33,7 +33,7 @@ class SkillContractTest(unittest.TestCase):
         self.assertIn("visible link pill", skill_text)
         self.assertIn("routeOverview.stops", schema_text)
 
-    def test_ui_preview_and_media_gate_is_documented_for_agents(self):
+    def test_ui_preview_and_automatic_network_media_is_documented_for_agents(self):
         skill_text = (SKILL / "SKILL.md").read_text(encoding="utf-8")
         schema_text = (SKILL / "references" / "itinerary-schema.md").read_text(encoding="utf-8")
         extraction_text = (SKILL / "references" / "extraction-rules.md").read_text(encoding="utf-8")
@@ -44,9 +44,10 @@ class SkillContractTest(unittest.TestCase):
         self.assertIn("confirmed_option_id", schema_text)
         self.assertIn("hero_treatment", schema_text)
         self.assertIn("map_treatment", schema_text)
-        self.assertIn("selected_asset_id", schema_text)
+        self.assertIn("source_name", schema_text)
+        self.assertIn("Automatically select", extraction_text)
         self.assertIn("不使用占位符", extraction_text)
-        self.assertIn("真实图片", extraction_text)
+        self.assertIn("stable network image", skill_text)
 
     def test_delegated_autonomy_records_ui_choices(self):
         skill_text = (SKILL / "SKILL.md").read_text(encoding="utf-8")
@@ -59,11 +60,26 @@ class SkillContractTest(unittest.TestCase):
 
     def test_readme_documents_ui_and_media_cli_inputs(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("Architecture", readme)
+        self.assertIn("travel-data.js", readme)
+        self.assertIn("window.HAPPY_TRIP_DATA", readme)
         self.assertIn("--ui-brief", readme)
         self.assertIn("--media-brief", readme)
         self.assertIn("ui-brief.json", readme)
         self.assertIn("create_ui_previews.py", readme)
         self.assertIn("media-manifest.json", readme)
+
+    def test_architecture_documents_current_runtime_contract(self):
+        architecture = (SKILL / "references" / "architecture.md").read_text(encoding="utf-8")
+        for token in [
+            "window.HAPPY_TRIP_DATA",
+            "travel-ui-components.js",
+            "travel-map.js",
+            "travel-data.js",
+            "mapStopLabels",
+            "no generated `trip-data.js`",
+        ]:
+            self.assertIn(token, architecture)
 
     def test_cross_agent_entrypoints_exist(self):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
