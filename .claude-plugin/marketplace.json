@@ -1,0 +1,16 @@
+{
+  "name": "happy-trip-site",
+  "owner": {
+    "name": "OWENLEEzy",
+    "url": "https://github.com/OWENLEEzy"
+  },
+  "description": "Turn trip notes into a phone-readable travel site with a shareable URL.",
+  "plugins": [
+    {
+      "name": "happy-trip-site",
+      "source": "./skill/happy-trip-site",
+      "version": "0.1.0",
+      "license": "MIT"
+    }
+  ]
+}

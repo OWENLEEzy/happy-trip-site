@@ -1,0 +1,13 @@
+{
+  "name": "happy-trip-site",
+  "version": "0.1.0",
+  "description": "Generate mobile-first travel itinerary websites from trip notes with a shareable URL and backup package.",
+  "author": {
+    "name": "OWENLEEzy",
+    "url": "https://github.com/OWENLEEzy"
+  },
+  "homepage": "https://github.com/OWENLEEzy/happy-trip-site",
+  "repository": "https://github.com/OWENLEEzy/happy-trip-site",
+  "license": "MIT",
+  "keywords": ["travel", "itinerary", "mobile-first", "vercel", "trip-planner"]
+}
