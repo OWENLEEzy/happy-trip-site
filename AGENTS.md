@@ -2,36 +2,45 @@
 
 This repository packages one installable skill at `skill/happy-trip-site`.
 
-For Codex, install or copy that folder into `~/.codex/skills/happy-trip-site`.
-For Claude Code, install or copy the same folder into `~/.claude/skills/happy-trip-site`.
-For other agents, read `skill/happy-trip-site/SKILL.md` first, then load only the referenced files needed for the current step.
+To install: tell your agent **"Install the happy-trip-site skill from https://github.com/owenleezy/happy-trip-site"** — it clones the repo and copies the skill to the correct path automatically.
+
+For other agents without GitHub access, read `skill/happy-trip-site/SKILL.md` first, then load only the referenced files needed for the current step.
 
 ## Commands
 
 ```bash
-# Run all unit tests
+# Run helper unit tests
+node --test tests/travel-helpers.test.js
+
+# Run layout composer unit tests
+node --test tests/travel-layouts.test.js
+
+# Run all tests
 node --test tests/*.test.js
 
-# Validate generated trip data or preview HTML
+# Validate generated trip data (accepts travel-data.js or any preview HTML)
 node skill/happy-trip-site/scripts/verify-preview.mjs <path-to-file>
 
 # Validate rendered mobile tap targets in a real browser
 node skill/happy-trip-site/scripts/verify-mobile-runtime.mjs <path-to-index-or-preview.html>
 
-# Validate the live demo data
+# Example: validate the live demo data
 node skill/happy-trip-site/scripts/verify-preview.mjs docs/assets/js/travel-data.js
 ```
 
 No build step is required. Node.js is needed for tests and verifiers; the browser-backed mobile verifier also needs Playwright available in the execution environment.
 
-## Core Rules
+## Hard Rules
 
 - Do not generate or deploy until the Trip Brief readiness gate passes and the user confirms.
 - Generate three real-runtime UI previews before final generation; each must show check-offs, progress, route pins, and visible link buttons.
-- Use Vercel Drop as the default publish handoff: package locally, ask the user to drag the generated folder to `vercel.com/drop`, then smoke-test the returned URL.
-- Keep every important guide reference as a visible tappable link in the generated page.
-- Validate every preview and final `travel-data.js` with `verify-preview.mjs`, then validate every rendered preview/final `index.html` with `verify-mobile-runtime.mjs` before claiming completion.
-- Do not claim `ready_to_share` unless validation, style confirmation, mobile usability, URL smoke test, and backup package are complete. Otherwise report `package_ready` or `blocked`.
+- Every itinerary item must have at least one visible tappable link button.
+- Every day must have `routeOverview.stops` for the route button and numbered pins.
+- Generated output file is always `assets/js/travel-data.js` assigning `window.HAPPY_TRIP_DATA` — never `trip-data.js` or any other name.
+- Refuse to overwrite an existing output folder unless the user explicitly requests it.
+- Validate every preview and final `travel-data.js` with `verify-preview.mjs`, then every rendered `index.html` with `verify-mobile-runtime.mjs` before claiming completion.
+- Use Vercel Drop as the default publish handoff: package locally, ask the user to drag the folder to `vercel.com/drop`, then smoke-test the returned URL.
+- Return `ready_to_share` / `package_ready` / `blocked`; put the shareable URL first only when the smoke test passes.
 
 ## Runtime Notes
 

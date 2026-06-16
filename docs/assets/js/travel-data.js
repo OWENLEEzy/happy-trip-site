@@ -194,9 +194,10 @@ window.HAPPY_TRIP_DATA = {
           note: "Buy tickets in advance online — counter queues can be 45 min. Arrive around 3 PM for the best light before sunset crowds. The 360° view across the city, Sentosa, and southern islands is genuinely one of Southeast Asia's finest.",
           mapStopLabels: ["Marina Bay Sands"],
           image: {
-            url: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Marina_Bay_Sands_%28I%29.jpg/3840px-Marina_Bay_Sands_%28I%29.jpg",
-            alt: "Marina Bay Sands hotel exterior",
-            source_name: "Wikimedia Commons"
+            url: "https://commons.wikimedia.org/wiki/Special:FilePath/Singapore_%28SG%29%2C_View_from_Marina_Bay_Sands%2C_Gardens_by_the_Bay_--_2019_--_4722.jpg?width=1600",
+            alt: "View from Marina Bay Sands SkyPark — Gardens by the Bay and city skyline, Singapore",
+            source_name: "Wikimedia Commons",
+            reason: "Commons — view taken from MBS observation deck, distinct from day hero exterior shot"
           },
           sections: [
             {
@@ -531,9 +532,10 @@ window.HAPPY_TRIP_DATA = {
           note: "The world-famous murals by Lithuanian artist Ernest Zacharevic are scattered across Georgetown's heritage shophouse district. 'Boy on a Bike' (Armenian St / Ah Quee St) and 'Children on a Bicycle' are the most photographed. Download the 'Penang Street Art' map from the George Town World Heritage Inc website. The walk covers about 2.5 km.",
           mapStopLabels: ["Georgetown Heritage Zone"],
           image: {
-            url: "https://commons.wikimedia.org/wiki/Special:FilePath/Penang_-_Boy_on_a_Bike.JPG?width=1600",
-            alt: "Boy on a Bike mural, Georgetown Penang",
-            source_name: "Wikimedia Commons"
+            url: "https://commons.wikimedia.org/wiki/Special:FilePath/Penang_Malaysia-_Cheong-Fatt-Tze-Mansion-06.jpg?width=1600",
+            alt: "Cheong Fatt Tze Blue Mansion, Georgetown Penang",
+            source_name: "Wikimedia Commons",
+            reason: "Commons — Blue Mansion on Armenian St, heart of the mural walk district"
           },
           sections: [
             {
@@ -693,9 +695,10 @@ window.HAPPY_TRIP_DATA = {
           note: "Arrive before 9 AM to beat the midday heat. Climb through the seven-storey Pagoda of Ten Thousand Buddhas (Ban Po Thar), then take the funicular up to the 30 m bronze Goddess of Mercy statue at the summit. The temple is especially beautiful just after dawn and at dusk when the lanterns light up.",
           mapStopLabels: ["Kek Lok Si Temple"],
           image: {
-            url: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Kek_Lok_Si_at_dusk.jpg/3840px-Kek_Lok_Si_at_dusk.jpg",
-            alt: "Kek Lok Si Temple at dusk",
-            source_name: "Wikimedia Commons"
+            url: "https://commons.wikimedia.org/wiki/Special:FilePath/017_Kek_Lok_See_Penang_Lotus_Pagoda.jpg?width=1600",
+            alt: "Kek Lok Si lotus pagoda, Penang",
+            source_name: "Wikimedia Commons",
+            reason: "Commons — lotus pagoda detail, distinct angle from day 4 dusk hero"
           },
           sections: [
             {
@@ -1000,10 +1003,10 @@ window.HAPPY_TRIP_DATA = {
       title: "Mangroves, Eagles & the Perfect Beach",
       themeLabel: "Nature Day",
       hero: {
-        url: "https://commons.wikimedia.org/wiki/Special:FilePath/Langkawi_Mangrove_Forest.jpg?width=1600",
-        alt: "Langkawi mangrove forest, Kilim Karst Geoforest Park",
+        url: "https://commons.wikimedia.org/wiki/Special:FilePath/Langkawi_Cable_Car_SKYCAB.jpg?width=1600",
+        alt: "Langkawi Cable Car SkyCab gondola, Gunung Mat Cincang",
         source_name: "Wikimedia Commons",
-        reason: "Commons file Langkawi Mangrove Forest.jpg — representative image of Kilim Geoforest mangroves"
+        reason: "Commons — SkyCab is the named landmark for Day 6; mangrove image moves to item use only"
       },
       routeOverview: {
         title: "North Langkawi Nature Loop",
@@ -1221,9 +1224,10 @@ window.HAPPY_TRIP_DATA = {
           note: "Buy tickets online — same-day tickets sell out before noon. The Skybridge at Level 41 connects the two towers. The Level 86 observation deck at 370 m has clear-day views to Genting Highlands. After, walk through KLCC Park (free) and loop around Aquaria KLCC.",
           mapStopLabels: ["Petronas Twin Towers"],
           image: {
-            url: "https://commons.wikimedia.org/wiki/Special:FilePath/Petronas_Panorama_II.jpg?width=1600",
-            alt: "Petronas Twin Towers panoramic view",
-            source_name: "Wikimedia Commons"
+            url: "https://commons.wikimedia.org/wiki/Special:FilePath/Skybridge_petronas_twin_towers_kl.jpg?width=1600",
+            alt: "Skybridge connecting the Petronas Twin Towers, Level 41, Kuala Lumpur",
+            source_name: "Wikimedia Commons",
+            reason: "Commons — actual skybridge interior, distinct from meta.hero exterior panorama"
           },
           sections: [
             {
@@ -1337,9 +1341,10 @@ window.HAPPY_TRIP_DATA = {
           note: "The 272 golden steps lead to a vast limestone cavern sheltering Hindu temples. The 43 m rainbow-painted Lord Murugan statue is the tallest in the world. Temple Cave inside is sacred — remove shoes, dress modestly. Wild macaques are everywhere; secure your bags and do not carry visible food.",
           mapStopLabels: ["Batu Caves"],
           image: {
-            url: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/Batu_Caves_stairs_2022-05.jpg/3840px-Batu_Caves_stairs_2022-05.jpg",
-            alt: "Batu Caves golden stairs and Murugan statue",
-            source_name: "Wikimedia Commons"
+            url: "https://commons.wikimedia.org/wiki/Special:FilePath/Hindu_temple_located_in_the_interior_of_Batu_Caves.jpg?width=1600",
+            alt: "Hindu shrine inside the Temple Cave, Batu Caves",
+            source_name: "Wikimedia Commons",
+            reason: "Commons — interior temple after climbing stairs, distinct from day 8 hero exterior"
           },
           sections: [
             {
@@ -1520,9 +1525,10 @@ window.HAPPY_TRIP_DATA = {
           note: "The park is completely free and magical in the early morning — joggers, families, and just-lit towers. Symphony Lake fountain runs from 8 AM. Walk the full loop (about 20 min) and find the bench directly facing both towers for the final photo. The light is best before 9 AM before haze builds.",
           mapStopLabels: ["KLCC Park"],
           image: {
-            url: "https://commons.wikimedia.org/wiki/Special:FilePath/The_Twins_SE_Asia_2019_(49171985716).jpg?width=1600",
-            alt: "Petronas Twin Towers from KLCC Park",
-            source_name: "Wikimedia Commons"
+            url: "https://commons.wikimedia.org/wiki/Special:FilePath/Malaysia_-_043_-_KL_-_KLCC_park_outside_the_Petronas_Towers_%283527948915%29.jpg?width=1600",
+            alt: "KLCC Park morning with Petronas Twin Towers, Kuala Lumpur",
+            source_name: "Wikimedia Commons",
+            reason: "Commons — ground-level park view, distinct from meta.hero exterior shot and Day 7 Petronas items"
           },
           links: [
             { type: "maps", label: "KLCC Park", url: "https://maps.google.com/?q=KLCC+Park+Kuala+Lumpur+Malaysia", priority: "primary" }
