@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Happy Trip Site</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./assets/css/travel.css?v=travel-runtime-v2">
+<link rel="stylesheet" href="./assets/css/layouts/timeline.css?v=travel-runtime-v2">
+<link rel="stylesheet" href="./assets/css/layouts/editorial.css?v=travel-runtime-v2">
+<link rel="stylesheet" href="./assets/css/layouts/sensory.css?v=travel-runtime-v2">
+<link rel="stylesheet" href="./assets/css/layouts/navigator.css?v=travel-runtime-v2">
+</head>
+<body>
+
+<!-- top bar -->
+<header class="topbar">
+  <button class="menu-btn" id="menuBtn" aria-label="打开日期菜单">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+  <div class="top-title">
+    <span class="meta" id="topMeta">DAY 01</span>
+    <span class="cn" id="topCn">Happy Trip</span>
+  </div>
+  <i class="dest-glyph" id="destGlyph" data-on="0" aria-hidden="true"></i>
+  <div class="theme-badge"><span id="themeBadgeText">TRIP</span></div>
+</header>
+
+<!-- sidebar -->
+<div class="scrim" id="scrim"></div>
+<aside class="sidebar" id="sidebar" aria-label="日期选择">
+  <div class="sb-head">
+    <h2 class="sb-title" id="sidebarTitle">Happy<em>Trip</em></h2>
+    <div class="sb-sub" id="sidebarSub">HAPPY TRIP</div>
+    <div class="sb-meta">
+      <span class="chip" id="sidebarPrimaryMeta">TRIP</span>
+      <span class="chip" id="sidebarSecondaryMeta">MOBILE</span>
+    </div>
+  </div>
+  <nav class="sb-list" id="dayList">
+    <div class="sb-section-label">Trip Navigation</div>
+  </nav>
+  <div class="sb-foot">
+    <span>Travel Runtime</span>
+    <span class="vline">Mobile Links</span>
+  </div>
+</aside>
+
+<!-- main -->
+<main id="main"></main>
+<nav class="bottom-day-tabs" id="bottomDayTabs" aria-label="日期切换"></nav>
+
+<script src="./assets/js/travel-data.js?v=travel-runtime-v2"></script>
+<script src="./assets/js/travel-helpers.js?v=travel-runtime-v2"></script>
+<script src="./assets/js/travel-ui-components.js?v=travel-runtime-v2"></script>
+<script src="./assets/js/travel-map.js?v=travel-runtime-v2"></script>
+<script src="./assets/js/travel-layouts.js?v=travel-runtime-v2"></script>
+<script src="./assets/js/travel.js?v=travel-runtime-v2"></script>
+</body>
+</html>
