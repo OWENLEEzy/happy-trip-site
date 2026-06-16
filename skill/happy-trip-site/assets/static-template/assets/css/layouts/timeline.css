@@ -1,0 +1,41 @@
+/* Timeline layout — activates only under body[data-layout="timeline"].
+   Same elements as classic, arranged as one vertical spine with dotted nodes. */
+
+body[data-layout="timeline"] .landing-bay { min-height: 220px; }
+
+body[data-layout="timeline"] .timeline-stream {
+  position: relative;
+  margin: 18px 0;
+  padding-left: 30px;
+}
+body[data-layout="timeline"] .timeline-stream::before {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  background: var(--color-line);
+}
+body[data-layout="timeline"] .timeline-stream .item {
+  position: relative;
+  margin-bottom: 14px;
+}
+body[data-layout="timeline"] .timeline-stream .item::before {
+  content: "";
+  position: absolute;
+  left: -24px;
+  top: 18px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 2px solid var(--color-accent);
+}
+body[data-layout="timeline"] .timeline-stream .item.done::before {
+  background: var(--color-accent);
+}
+
+/* Route card shrinks to a chip at the foot of the stream. */
+body[data-layout="timeline"] .map-overview-card { margin-top: 6px; }
+body[data-layout="timeline"] .map-overview-stage { display: none; }
