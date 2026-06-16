@@ -1,0 +1,328 @@
+/* ============================================================
+   Editorial layout — activates only under body[data-layout="editorial"].
+   A travel-magazine treatment: high-contrast Fraunces display serif,
+   a commanding full-bleed cover, numbered magazine sections, and
+   pull-quote notes. Borrows frontend-slides' aesthetic discipline
+   (distinctive type, clamp() scaling, restrained palette) but does
+   NOT lock the viewport — an itinerary is meant to scroll.
+   All colours come from the data palette via --color-* tokens.
+   ============================================================ */
+
+body[data-layout="editorial"] {
+  --ed-serif: "Fraunces", Georgia, "Times New Roman", serif;
+  --ed-pad: clamp(18px, 5vw, 40px);
+  background:
+    radial-gradient(120% 60% at 50% 0%, rgba(0,0,0,.04), transparent 60%),
+    var(--color-bg);
+}
+
+/* ---------- Cover ---------- */
+body[data-layout="editorial"] .landing-bay {
+  position: relative;
+  min-height: clamp(440px, 74vh, 700px);
+  display: flex;
+  align-items: flex-end;
+  border-radius: 0;
+  overflow: hidden;
+}
+body[data-layout="editorial"] .landing-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.03);
+}
+body[data-layout="editorial"] .landing-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(12,10,8,.10) 0%, rgba(12,10,8,0) 30%,
+      rgba(12,10,8,.30) 62%, rgba(12,10,8,.82) 100%);
+}
+body[data-layout="editorial"] .landing-copy {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  padding: var(--ed-pad);
+  padding-top: clamp(36px, 10vh, 96px);
+  /* Bottom-anchored scrim so the serif headline stays legible over a bright
+     photo instead of washing out (matches navigator/sensory hero treatment). */
+  background: linear-gradient(180deg,
+    transparent 0%,
+    rgba(12,10,8,.5) 36%,
+    rgba(12,10,8,.85) 100%);
+  color: #fff;
+}
+body[data-layout="editorial"] .landing-copy .eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  font-family: var(--sans);
+  font-size: clamp(.62rem, 1.6vw, .74rem);
+  font-weight: 700;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.92);
+  margin-bottom: 14px;
+  text-shadow: 0 1px 8px rgba(0,0,0,.45);
+}
+body[data-layout="editorial"] .landing-copy .eyebrow span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body[data-layout="editorial"] .landing-copy .eyebrow::before {
+  content: "";
+  width: clamp(22px, 7vw, 46px);
+  height: 2px;
+  background: var(--color-accent-2);
+  display: inline-block;
+}
+body[data-layout="editorial"] .landing-copy h1 {
+  font-family: var(--ed-serif);
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-size: clamp(2.3rem, 9vw, 4.4rem);
+  line-height: .98;
+  letter-spacing: -.015em;
+  margin: 0 0 .35em;
+  max-width: 16ch;
+  overflow-wrap: break-word;
+  text-shadow: 0 1px 3px rgba(0,0,0,.8), 0 2px 22px rgba(0,0,0,.5);
+}
+body[data-layout="editorial"] .landing-copy p {
+  font-family: var(--sans);
+  font-size: clamp(.95rem, 2.4vw, 1.12rem);
+  line-height: 1.45;
+  font-weight: 400;
+  max-width: 42ch;
+  color: rgba(255,255,255,.94);
+  text-shadow: 0 1px 12px rgba(0,0,0,.5);
+}
+body[data-layout="editorial"] .landing-copy .motif-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+body[data-layout="editorial"] .landing-copy .motif-row span {
+  font-family: var(--sans);
+  font-size: .68rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  padding: 5px 11px;
+  border: 1px solid rgba(255,255,255,.45);
+  border-radius: 999px;
+  color: #fff;
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+body[data-layout="editorial"] .landing-copy .progress {
+  margin-top: 22px;
+  max-width: 320px;
+}
+body[data-layout="editorial"] .landing-copy .progress > div:first-child {
+  font-family: var(--sans);
+  font-size: .7rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.85);
+  margin-bottom: 7px;
+}
+body[data-layout="editorial"] .landing-copy .progress .bar {
+  height: 3px;
+  background: rgba(255,255,255,.3);
+  border-radius: 999px;
+  overflow: hidden;
+}
+body[data-layout="editorial"] .landing-copy .progress .fill {
+  height: 100%;
+  background: var(--color-accent-2);
+}
+
+/* ---------- Magazine body ---------- */
+body[data-layout="editorial"] .ed-stack {
+  counter-reset: ed-section;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: clamp(8px, 3vw, 28px) var(--ed-pad) 0;
+}
+
+/* Section heads become numbered editorial dividers */
+body[data-layout="editorial"] .period {
+  margin-top: clamp(28px, 6vw, 48px);
+}
+body[data-layout="editorial"] .period-head {
+  counter-increment: ed-section;
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1.5px solid var(--color-ink);
+  margin-bottom: 6px;
+}
+body[data-layout="editorial"] .period-head::before {
+  content: counter(ed-section, decimal-leading-zero);
+  font-family: var(--ed-serif);
+  font-weight: 600;
+  font-size: clamp(1.1rem, 3.5vw, 1.5rem);
+  color: var(--color-accent);
+  line-height: 1;
+}
+body[data-layout="editorial"] .period-head .icon { display: none; }
+body[data-layout="editorial"] .period-head .label-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+body[data-layout="editorial"] .period-head .label-main {
+  font-family: var(--ed-serif);
+  font-weight: 600;
+  font-size: clamp(1.25rem, 4.5vw, 1.75rem);
+  letter-spacing: -.01em;
+  color: var(--color-ink);
+}
+body[data-layout="editorial"] .period-head .label-sub {
+  font-family: var(--sans);
+  font-size: .72rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+body[data-layout="editorial"] .period-head .time-range {
+  font-family: var(--sans);
+  font-size: .72rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+/* Items become flat editorial entries, not boxed cards */
+body[data-layout="editorial"] .period .items { display: block; }
+body[data-layout="editorial"] .item {
+  position: relative;
+  background: transparent;
+  box-shadow: none;
+  border: 0;
+  border-bottom: 1px solid var(--color-line);
+  border-radius: 0;
+  padding: 20px 0 22px 0;
+  display: flex;
+  gap: 14px;
+}
+body[data-layout="editorial"] .item:last-child { border-bottom: 0; }
+body[data-layout="editorial"] .it-check {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-muted);
+  background: transparent;
+  margin-top: 3px;
+}
+body[data-layout="editorial"] .item.done .it-check {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #fff;
+}
+body[data-layout="editorial"] .it-body { flex: 1; min-width: 0; }
+body[data-layout="editorial"] .it-time {
+  font-family: var(--sans);
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: 4px;
+}
+body[data-layout="editorial"] .it-title {
+  font-family: var(--ed-serif);
+  font-weight: 600;
+  font-size: clamp(1.12rem, 3.4vw, 1.32rem);
+  line-height: 1.18;
+  letter-spacing: -.005em;
+  color: var(--color-ink);
+}
+body[data-layout="editorial"] .item.done .it-title {
+  color: var(--color-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--color-muted);
+}
+body[data-layout="editorial"] .it-subtitle {
+  font-family: var(--sans);
+  font-size: .92rem;
+  color: var(--color-muted);
+  margin-top: 3px;
+}
+body[data-layout="editorial"] .it-media {
+  margin: 14px 0 4px;
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+}
+body[data-layout="editorial"] .it-media img { width: 100%; display: block; }
+body[data-layout="editorial"] .it-note {
+  font-family: var(--ed-serif);
+  font-style: italic;
+  font-size: 1.02rem;
+  line-height: 1.5;
+  color: var(--color-ink);
+  padding-left: 14px;
+  border-left: 2px solid var(--color-accent-2);
+  margin-top: 12px;
+}
+body[data-layout="editorial"] .it-map-seq {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: .64rem;
+  letter-spacing: .06em;
+  color: #fff;
+  background: var(--color-accent);
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin-right: 7px;
+  vertical-align: middle;
+}
+
+/* Route demoted to a reference block at the foot of the day */
+body[data-layout="editorial"] .ed-reference {
+  margin-top: clamp(30px, 7vw, 52px);
+  padding-top: 18px;
+  border-top: 1.5px solid var(--color-ink);
+}
+body[data-layout="editorial"] .ed-reference .map-overview-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: 4px;
+}
+
+/* Day navigation as editorial footer */
+body[data-layout="editorial"] .day-foot {
+  max-width: 720px;
+  margin: clamp(24px, 6vw, 44px) auto 0;
+  padding: 0 var(--ed-pad) clamp(28px, 8vw, 56px);
+}
+body[data-layout="editorial"] .day-foot .nav-btn .nb-label {
+  font-family: var(--sans);
+  font-size: .66rem;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+body[data-layout="editorial"] .day-foot .nav-btn .nb-title {
+  font-family: var(--ed-serif);
+  font-weight: 600;
+}
+
+/* Short / narrow screens: tighten the cover so the title still leads */
+@media (max-height: 640px) {
+  body[data-layout="editorial"] .landing-bay { min-height: clamp(360px, 80vh, 520px); }
+  body[data-layout="editorial"] .landing-copy { padding-top: clamp(28px, 8vh, 60px); }
+}
